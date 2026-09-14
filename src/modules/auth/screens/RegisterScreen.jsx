@@ -18,6 +18,10 @@ import { CustomInput } from '../../../shared/components/atoms/CustomInput';
 import { PrimaryButton } from '../../../shared/components/atoms/PrimaryButton';
 import { colors } from '../../../theme/colors';
 
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '../../../config/firebase';
+import { syncWithBackend } from '../../../services/api';
+
 /**
  * RegisterScreen - Pantalla de Registro de Usuario (Figma MealMuse)
  * 
@@ -32,14 +36,14 @@ import { colors } from '../../../theme/colors';
  * - Toda la vista está envuelta en `<KeyboardAvoidingView>` y `<ScrollView>` para accesibilidad móvil en teclados virtuales.
  */
 export const RegisterScreen = ({
-  navigation = { navigate: () => {}, goBack: () => {} },
+  navigation = { navigate: () => {}, goBack: () => {}, replace: () => {} },
   onRegisterSuccess = () => {},
 }) => {
   // Estados de los campos del formulario de registro
-  const [fullName, setFullName] = useState('Esther Sinche');
-  const [email, setEmail] = useState('esther@correo.com');
-  const [password, setPassword] = useState('password123');
-  const [confirmPassword, setConfirmPassword] = useState('password123');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isPasswordHidden, setIsPasswordHidden] = useState(true);
   const [isConfirmPasswordHidden, setIsConfirmPasswordHidden] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -48,7 +52,7 @@ export const RegisterScreen = ({
   /**
    * Valida los campos requeridos y simula la creación de la cuenta
    */
-  const handleRegisterSubmit = () => {
+  const handleRegisterSubmit = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       setErrorMessage('Todos los campos son obligatorios');
       return;
@@ -67,16 +71,59 @@ export const RegisterScreen = ({
     setErrorMessage('');
     setIsLoading(true);
 
-    // Simulación de registro con backend
-    setTimeout(() => {
-      setIsLoading(false);
-      Alert.alert(
-        'Cuenta Creada',
-        'Tu cuenta ha sido creada exitosamente.',
-        [{ text: 'Continuar', onPress: () => navigation.goBack() }]
+    try {
+      // crear cuenta en firebase
+      const credential = await createUserWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
       );
+
+      // guardar el nombre en el perfil de Firebase
+      await updateProfile(credential.user, { displayName: fullName.trim() });
+
+      // obtener ID token y sincronizar con el backend
+      const idToken = await credential.user.getIdToken();
+      await syncWithBackend(idToken);
+
+      // callback externo (opcional)
       onRegisterSuccess({ fullName, email });
-    }, 1000);
+
+      // navegar a Despensa
+      Alert.alert(
+        'Cuenta creada',
+        'Tu cuenta ha sido creada exitosamente.',
+        [
+          {
+            text: 'Continuar',
+            onPress: () => {
+              if (navigation && typeof navigation.replace === 'function') {
+                navigation.replace('Despensa');
+              } else if (navigation && typeof navigation.navigate === 'function') {
+                navigation.navigate('Despensa');
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Register error:', error);
+
+      // msgs según el código de error de Firebase
+      if (error.code === 'auth/email-already-in-use') {
+        setErrorMessage('Este correo ya está registrado');
+      } else if (error.code === 'auth/invalid-email') {
+        setErrorMessage('El correo no tiene un formato válido');
+      } else if (error.code === 'auth/weak-password') {
+        setErrorMessage('La contraseña es demasiado débil');
+      } else if (error.code === 'auth/network-request-failed') {
+        setErrorMessage('Sin conexión. Verifica tu internet');
+      } else {
+        setErrorMessage('No se pudo crear la cuenta. Intenta de nuevo');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

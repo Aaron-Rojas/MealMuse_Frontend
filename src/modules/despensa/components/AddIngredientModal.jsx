@@ -90,51 +90,6 @@ export const AddIngredientModal = ({
   };
 
   /**
-   * Procesa el envío validado del formulario y conecta con el backend
-   */
-  const handleSubmit = async () => {
-    // Primera línea: Validar antes de proceder
-    if (!validateForm()) return;
-
-    // Impresión del payload listo para el backend
-    console.log('Payload validado para el backend:', formData);
-
-    /* =========================================================================
-     * ESQUELETO DE INTEGRACIÓN HTTP (FETCH NATIVO)
-     * =========================================================================
-     * try {
-     *   setIsSubmitting(true);
-     *   const response = await fetch('https://api.melmuse.com/api/v1/ingredientes', {
-     *     method: 'POST',
-     *     headers: {
-     *       'Content-Type': 'application/json',
-     *       // 'Authorization': `Bearer ${userToken}`,
-     *     },
-     *     body: JSON.stringify(formData),
-     *   });
-     * 
-     *   if (!response.ok) {
-     *     const errorResponse = await response.json();
-     *     throw new Error(errorResponse.message || 'Error al guardar ingrediente');
-     *   }
-     * 
-     *   const savedIngredient = await response.json();
-     *   console.log('Ingrediente persistido en base de datos:', savedIngredient);
-     * } catch (error) {
-     *   console.error('Error de red al guardar ingrediente:', error);
-     * } finally {
-     *   setIsSubmitting(false);
-     * }
-     * ========================================================================= */
-
-    // Notifica al componente padre (DespensaScreen)
-    onSave(formData);
-
-    // Reinicia el formulario y cierra el modal
-    handleCloseModal();
-  };
-
-  /**
    * Cierra el modal y limpia el formulario
    */
   const handleCloseModal = () => {
@@ -142,6 +97,31 @@ export const AddIngredientModal = ({
     setErrors({});
     setIsSubmitting(false);
     onClose();
+  };
+
+  /**
+   * Procesa el envío validado del formulario y conecta con el backend
+   */
+  const handleSubmit = async () => {
+    // 1. Validar campos
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // 2. Notificar al padre (que hará la llamada al backend)
+      await onSave(formData);
+      // 3. Cerrar y limpiar formulario
+      handleCloseModal();
+    } catch (error) {
+      console.error('Error al guardar ingrediente:', error);
+      setErrors((prev) => ({
+        ...prev,
+        general: error.message || 'No se pudo guardar el ingrediente',
+      }));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
