@@ -14,6 +14,10 @@ import { CustomInput } from '../../../shared/components/atoms/CustomInput';
 import { PrimaryButton } from '../../../shared/components/atoms/PrimaryButton';
 import { colors } from '../../../theme/colors';
 
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from "../../../config/firebase";
+import { syncWithBackend } from "../../../services/api";
+
 /**
  * LoginScreen - Pantalla de Inicio de Sesión (Figma MealMuse)
  * 
@@ -36,16 +40,16 @@ export const LoginScreen = ({
   onNavigateToRegister = null,
 }) => {
   // Estados de los campos del formulario
-  const [email, setEmail] = useState('esther@correo.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isPasswordHidden, setIsPasswordHidden] = useState(true);
-  const [errorMessage, setErrorMessage] = useState('Correo o contraseña incorrectos');
+  const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   /**
    * Maneja el envío del formulario y activa la validación
    */
-  const handleLoginSubmit = () => {
+  const handleLoginSubmit = async () => {
     if (!email.trim() || !password.trim()) {
       setErrorMessage('Por favor ingresa tu correo y contraseña');
       return;
@@ -54,18 +58,46 @@ export const LoginScreen = ({
     setIsLoading(true);
     setErrorMessage('');
 
-    // Simulación de validación con backend
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      // autenticar con Firebase
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      // obtener el ID token
+      const idToken = await credential.user.getIdToken();
+      // sincronizar con el backend (crea/actualiza el perfil local)
+      await syncWithBackend(idToken);
+      // notificar al callback externo (opcional)
       onLogin({ email, password });
-
-      // Transición segura al Home de Despensa reemplazando la pila
+      // navegar a Despensa
       if (navigation && typeof navigation.replace === 'function') {
         navigation.replace('Despensa');
       } else if (navigation && typeof navigation.navigate === 'function') {
         navigation.navigate('Despensa');
       }
-    }, 800);
+    } catch (error) {
+      console.error('Login error:', error);
+      // msgs según el código de error de firebase
+      if (error.code === 'auth/invalid-email') {
+        setErrorMessage('El correo no tiene un formato válido');
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setErrorMessage('Correo o contraseña incorrectos');
+      } else if (error.code === 'auth/too-many-requests') {
+        setErrorMessage('Demasiados intentos. Intenta más tarde');
+      } else if (error.code === 'auth/network-request-failed') {
+        setErrorMessage('Sin conexión. Verifica tu internet');
+      } else {
+        setErrorMessage('No se pudo iniciar sesión. Intenta de nuevo');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * placeholder para google login/sign in (Sprint 2)
+   */
+  const handleGoogleLogin = () => {
+    Alert.alert('Próximamente', 'El inicio con Google estará disponible pronto');
+    onGoogleLogin();
   };
 
   /**

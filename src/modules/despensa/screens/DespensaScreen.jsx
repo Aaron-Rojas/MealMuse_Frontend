@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,98 +14,124 @@ import { AddIngredientModal } from '../components/AddIngredientModal';
 import { FloatingActionButton } from '../../../shared/components/atoms/FloatingActionButton';
 import { colors } from '../../../theme/colors';
 
+import { signOut } from 'firebase/auth';
+import { auth } from '../../../config/firebase';
+import { getPantry, addPantryItem, deletePantryItem } from '../../../services/api';
+
 /**
- * Mock Data - Datos iniciales de prueba extraídos del diseño
+ * Convierte una fecha en formato dd/mm/aaaa o ISO a días restantes
  */
-const INITIAL_INGREDIENTS = [
-  {
-    id: '1',
-    name: 'Espinaca fresca',
-    quantity: '300 g',
-    daysToExpiry: 2, // Rojo (<= 3 días)
-  },
-  {
-    id: '2',
-    name: 'Huevos',
-    quantity: '6 unidades',
-    daysToExpiry: 4, // Amarillo (4 a 7 días)
-  },
-  {
-    id: '3',
-    name: 'Leche entera',
-    quantity: '1 L',
-    daysToExpiry: 9, // Verde (> 7 días)
-  },
-  {
-    id: '4',
-    name: 'Arroz',
-    quantity: '1 kg',
-    daysToExpiry: 45, // Verde (> 7 días)
-  },
-  {
-    id: '5',
-    name: 'Tomate',
-    quantity: '5 unidades',
-    daysToExpiry: 3, // Rojo (<= 3 días)
-  },
-];
+function calculateDaysToExpiry(fechaCaducidad) {
+  if (!fechaCaducidad) return 999;
+  const expiry = new Date(fechaCaducidad);
+  if (isNaN(expiry.getTime())) return 999;
+  const now = new Date();
+  const diffMs = expiry.getTime() - now.getTime();
+  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+}
+
+/**
+ * Convierte una fecha de entrada (dd/mm/aaaa o ISO) al formato ISO YYYY-MM-DD
+ */
+function parseFechaToISO(input) {
+  if (!input || !input.trim()) return null;
+  const trimmed = input.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parts = trimmed.split('/');
+  if (parts.length === 3) {
+    const [d, m, y] = parts;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return null;
+}
+
+/**
+ * Transforma el objeto del backend al formato que espera IngredientCard
+ */
+function transformBackendItem(item) {
+  return {
+    id: String(item.id),
+    backendId: item.id,
+    name: item.ingrediente,
+    quantity: `${item.cantidad} ${item.unidad}`,
+    daysToExpiry: calculateDaysToExpiry(item.fecha_caducidad),
+    fecha_caducidad: item.fecha_caducidad,
+  };
+}
 
 /**
  * DespensaScreen - Pantalla Principal del Módulo de Despensa
- * 
- * ¿POR QUÉ?
- * Gestiona el inventario de alimentos, permitiendo el registro, la consulta y la eliminación
- * de insumos (CRUD), además de controlar la sesión del usuario mediante un deslogueo seguro.
- * 
- * ¿CÓMO?
- * - Deslogueo: Se utiliza `navigation.replace('Login')` para destruir el stack de navegación,
- *   garantizando que el botón de retroceso físico de Android no regrese a la vista protegida.
- * - Eliminación: Se implementa la pulsación prolongada (`onLongPress`) en cada tarjeta, desplegando
- *   un `Alert.alert` nativo con acción destructiva que filtra el elemento por su identificador único.
- * - Registro: Mapea el contrato de formulario (`nombre`, `cantidad`, `unidad`) al formato visual de la lista.
  */
 export const DespensaScreen = ({
   navigation = { navigate: () => {}, replace: () => {}, reset: () => {} },
   onSearchPress = () => {},
 }) => {
-  const [ingredients, setIngredients] = useState(INITIAL_INGREDIENTS);
+  const [ingredients, setIngredients] = useState([]);
   const [isModalVisible, setModalVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   /**
-   * Cierra la sesión del usuario reemplazando la ruta actual para destruir el historial
+   * Carga la despensa desde el backend al montar
    */
-  const handleLogout = () => {
+  const loadPantry = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await getPantry();
+      setIngredients(data.map(transformBackendItem));
+    } catch (error) {
+      console.error('Error al cargar despensa:', error);
+      Alert.alert('Error', 'No se pudo cargar tu despensa. Verifica tu conexión.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPantry();
+  }, [loadPantry]);
+
+  /**
+   * Cierra la sesión del usuario en Firebase y navega a Login
+   */
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
     if (navigation && typeof navigation.replace === 'function') {
       navigation.replace('Login');
     } else if (navigation && typeof navigation.reset === 'function') {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
     } else if (navigation && typeof navigation.navigate === 'function') {
       navigation.navigate('Login');
     }
   };
 
   /**
-   * Despliega alerta nativa de confirmación y elimina el ingrediente de la lista
+   * Elimina un ingrediente del backend y actualiza la lista
    */
-  const handleDelete = (ingredientId) => {
+  const handleDelete = (ingredient) => {
     Alert.alert(
-      'Eliminar Ingrediente',
-      '¿Estás seguro de que deseas eliminar este ingrediente de tu despensa?',
+      'Eliminar ingrediente',
+      `¿Estás seguro de que deseas eliminar "${ingredient.name}" de tu despensa?`,
       [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
+        { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
-            setIngredients((prevList) =>
-              prevList.filter((item) => item.id !== ingredientId)
-            );
+          onPress: async () => {
+            try {
+              // Actualización optimista: quitamos de la UI primero
+              setIngredients((prev) =>
+                prev.filter((item) => item.id !== ingredient.id)
+              );
+              await deletePantryItem(ingredient.backendId);
+            } catch (error) {
+              console.error('Error al eliminar:', error);
+              Alert.alert('Error', 'No se pudo eliminar. Recargando lista...');
+              loadPantry();
+            }
           },
         },
       ]
@@ -113,46 +139,50 @@ export const DespensaScreen = ({
   };
 
   /**
-   * Agrega un nuevo ingrediente a la lista y actualiza el contador
-   * Mapea tanto el payload del contrato backend (nombre, cantidad, unidad) como el estándar de la UI
+   * Agrega un nuevo ingrediente llamando al backend
    */
-  const handleAddIngredient = (newIngredientData = {}) => {
-    const displayName = newIngredientData.nombre || newIngredientData.name || 'Nuevo Ingrediente';
-    const displayQuantity = newIngredientData.cantidad && newIngredientData.unidad
-      ? `${newIngredientData.cantidad} ${newIngredientData.unidad}`
-      : newIngredientData.quantity || '1 unidad';
-
-    const newEntry = {
-      id: String(Date.now()),
-      name: displayName,
-      quantity: displayQuantity,
-      daysToExpiry: 7, // Estimación predeterminada
+  const handleAddIngredient = async (formData) => {
+    const payload = {
+      ingrediente: formData.nombre.trim(),
+      cantidad: parseFloat(formData.cantidad),
+      unidad: formData.unidad.trim(),
+      fecha_caducidad: parseFechaToISO(formData.fechaVencimiento),
     };
 
-    setIngredients((prevList) => [newEntry, ...prevList]);
+    if (isNaN(payload.cantidad) || payload.cantidad <= 0) {
+      throw new Error('La cantidad debe ser un número mayor a 0');
+    }
+
+    const newItem = await addPantryItem(payload);
+    setIngredients((prev) => [transformBackendItem(newItem), ...prev]);
   };
 
   /**
-   * Renderiza cada tarjeta de alimento con soporte para onLongPress
+   * Renderiza cada tarjeta
    */
   const renderIngredientItem = ({ item }) => (
     <IngredientCard
       item={item}
-      onPress={(selectedItem) => {
-        // Interacción futura para ver detalle o editar
-      }}
-      onLongPress={() => handleDelete(item.id)}
+      onPress={() => {}}
+      onLongPress={() => handleDelete(item)}
     />
   );
 
-  /**
-   * Componente de encabezado dentro del flujo de la lista
-   */
   const ListHeader = () => (
     <View style={styles.headerSection}>
       <Text style={styles.sectionTitle}>Ordenado por vencimiento</Text>
     </View>
   );
+
+  const ListEmpty = () =>
+    !isLoading ? (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyText}>Tu despensa está vacía</Text>
+        <Text style={styles.emptySubtext}>
+          Toca el botón + para agregar tu primer ingrediente
+        </Text>
+      </View>
+    ) : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
