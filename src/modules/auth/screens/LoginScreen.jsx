@@ -67,11 +67,11 @@ export const LoginScreen = ({
       await syncWithBackend(idToken);
       // notificar al callback externo (opcional)
       onLogin({ email, password });
-      // navegar a Despensa
+      // navegar al flujo principal autenticado
       if (navigation && typeof navigation.replace === 'function') {
-        navigation.replace('Despensa');
+        navigation.replace('AppTabs');
       } else if (navigation && typeof navigation.navigate === 'function') {
-        navigation.navigate('Despensa');
+        navigation.navigate('AppTabs');
       }
     } catch (error) {
       console.error('Login error:', error);

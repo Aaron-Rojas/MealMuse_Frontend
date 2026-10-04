@@ -89,7 +89,7 @@ export const RegisterScreen = ({
       // callback externo (opcional)
       onRegisterSuccess({ fullName, email });
 
-      // navegar a Despensa
+      // navegar al flujo principal autenticado
       Alert.alert(
         'Cuenta creada',
         'Tu cuenta ha sido creada exitosamente.',
@@ -98,9 +98,9 @@ export const RegisterScreen = ({
             text: 'Continuar',
             onPress: () => {
               if (navigation && typeof navigation.replace === 'function') {
-                navigation.replace('Despensa');
+                navigation.replace('AppTabs');
               } else if (navigation && typeof navigation.navigate === 'function') {
-                navigation.navigate('Despensa');
+                navigation.navigate('AppTabs');
               }
             },
           },
