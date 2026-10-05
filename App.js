@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { DespensaScreen } from './src/modules/despensa/screens/DespensaScreen';
 import { LoginScreen } from './src/modules/auth/screens/LoginScreen';
@@ -17,6 +17,8 @@ const Stack = createNativeStackNavigator();
 const AppTabs = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('Recetas');
 
+  const insets = useSafeAreaInsets();
+
   const screens = useMemo(
     () => ({
       Despensa: <DespensaScreen navigation={navigation} />, 
@@ -29,7 +31,10 @@ const AppTabs = ({ navigation }) => {
   return (
     <View style={styles.tabShell}>
       <View style={styles.tabContent}>{screens[activeTab]}</View>
-      <View style={styles.tabBar}>
+      <View style={[
+        styles.tabBar, 
+        { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 12 }
+      ]}>
         {['Despensa', 'Recetas', 'Perfil'].map((tab) => {
           const isSelected = activeTab === tab;
           return (
@@ -90,7 +95,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border.light,
     paddingHorizontal: 12,
     paddingTop: 8,
-    paddingBottom: 12,
+    
   },
   tabButton: {
     flex: 1,
