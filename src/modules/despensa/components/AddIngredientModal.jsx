@@ -9,10 +9,28 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Pressable,
+  FlatList,
 } from 'react-native';
 import { CustomInput } from '../../../shared/components/atoms/CustomInput';
 import { PrimaryButton } from '../../../shared/components/atoms/PrimaryButton';
 import { colors } from '../../../theme/colors';
+
+// ---------------------------------------------------------------------------
+// Unidades de medida aceptadas — deben estar sincronizadas con el backend
+// (app/schemas/pantry.py  ›  UnidadMedida)
+// ---------------------------------------------------------------------------
+const UNIDADES = [
+  { value: 'unidad', label: 'unidad  — pieza sin medida' },
+  { value: 'kg', label: 'kg  — kilogramos' },
+  { value: 'g', label: 'g  — gramos' },
+  { value: 'mg', label: 'mg  — miligramos' },
+  { value: 'lb', label: 'lb  — libras' },
+  { value: 'oz', label: 'oz  — onzas' },
+  { value: 'l', label: 'l  — litros' },
+  { value: 'ml', label: 'ml  — mililitros' },
+
+];
 
 // Estado inicial del formulario con las claves exactas del contrato de datos
 const INITIAL_FORM_STATE = {
@@ -36,8 +54,8 @@ const INITIAL_FORM_STATE = {
  */
 export const AddIngredientModal = ({
   visible = false,
-  onClose = () => {},
-  onSave = () => {},
+  onClose = () => { },
+  onSave = () => { },
 }) => {
   // 1. Estado centralizado del formulario
   const [formData, setFormData] = useState(INITIAL_FORM_STATE);
@@ -47,6 +65,9 @@ export const AddIngredientModal = ({
 
   // Estado de carga para la operación asíncrona
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Estado para mostrar el picker de unidades
+  const [showUnitPicker, setShowUnitPicker] = useState(false);
 
   /**
    * Manejador genérico para actualizar dinámicamente cualquier campo del formulario
@@ -197,16 +218,85 @@ export const AddIngredientModal = ({
 
                 <View style={styles.halfField}>
                   <Text style={styles.fieldLabel}>Unidad</Text>
-                  <CustomInput
-                    value={formData.unidad}
-                    onChangeText={(val) => handleInputChange('unidad', val)}
-                    placeholder="unidades"
-                    autoCapitalize="none"
-                    hasError={Boolean(errors.unidad)}
-                  />
+
+                  {/* Botón que abre el picker de unidades */}
+                  <TouchableOpacity
+                    onPress={() => setShowUnitPicker(true)}
+                    activeOpacity={0.75}
+                    style={[
+                      styles.unitPickerButton,
+                      Boolean(errors.unidad) && styles.unitPickerButtonError,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Seleccionar unidad de medida"
+                  >
+                    <Text
+                      style={
+                        formData.unidad
+                          ? styles.unitPickerValue
+                          : styles.unitPickerPlaceholder
+                      }
+                      numberOfLines={1}
+                    >
+                      {formData.unidad || 'Ej. kg, ml…'}
+                    </Text>
+                    <Text style={styles.unitPickerChevron}>▾</Text>
+                  </TouchableOpacity>
+
                   {errors.unidad ? (
                     <Text style={styles.fieldErrorText}>{errors.unidad}</Text>
                   ) : null}
+
+                  {/* Modal dropdown de unidades */}
+                  <Modal
+                    visible={showUnitPicker}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowUnitPicker(false)}
+                  >
+                    <Pressable
+                      style={styles.unitOverlay}
+                      onPress={() => setShowUnitPicker(false)}
+                    >
+                      <View style={styles.unitDropdown}>
+                        <Text style={styles.unitDropdownTitle}>
+                          Selecciona la unidad
+                        </Text>
+                        <FlatList
+                          data={UNIDADES}
+                          keyExtractor={(item) => item.value}
+                          renderItem={({ item }) => (
+                            <TouchableOpacity
+                              style={[
+                                styles.unitOption,
+                                formData.unidad === item.value &&
+                                styles.unitOptionSelected,
+                              ]}
+                              onPress={() => {
+                                handleInputChange('unidad', item.value);
+                                setShowUnitPicker(false);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Text
+                                style={[
+                                  styles.unitOptionText,
+                                  formData.unidad === item.value &&
+                                  styles.unitOptionTextSelected,
+                                ]}
+                              >
+                                {item.label}
+                              </Text>
+                              {formData.unidad === item.value && (
+                                <Text style={styles.unitOptionCheck}>✓</Text>
+                              )}
+                            </TouchableOpacity>
+                          )}
+                          showsVerticalScrollIndicator={false}
+                        />
+                      </View>
+                    </Pressable>
+                  </Modal>
                 </View>
               </View>
 
@@ -331,6 +421,93 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 13,
     fontWeight: '700',
+  },
+  // Estilos del picker de unidades
+  unitPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 48,
+    borderWidth: 1,
+    borderColor: colors.border.light,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: colors.background.surface,
+  },
+  unitPickerButtonError: {
+    borderColor: colors.error.text,
+  },
+  unitPickerValue: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text.primary,
+    fontWeight: '500',
+  },
+  unitPickerPlaceholder: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text.secondary,
+  },
+  unitPickerChevron: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginLeft: 4,
+  },
+  // Overlay del dropdown
+  unitOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  unitDropdown: {
+    backgroundColor: colors.background.surface,
+    borderRadius: 16,
+    paddingVertical: 8,
+    width: '100%',
+    maxHeight: 360,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  unitDropdownTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text.primary,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.light,
+    marginBottom: 4,
+  },
+  unitOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+  },
+  unitOptionSelected: {
+    backgroundColor: colors.primaryLight,
+  },
+  unitOptionText: {
+    fontSize: 15,
+    color: colors.text.primary,
+    flex: 1,
+  },
+  unitOptionTextSelected: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  unitOptionCheck: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '700',
+    marginLeft: 8,
   },
   saveButton: {
     marginBottom: 8,

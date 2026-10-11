@@ -106,3 +106,21 @@ Escanea el código QR desde la app **Expo Go** en tu dispositivo físico (Androi
 
 ### Buenas Prácticas para el Servicio API
 - Crear un cliente HTTP centralizado en `src/services/api.js` (o `src/shared/api/httpClient.js`) que maneje `baseUrl`, headers por defecto e intercepción de tokens de autenticación.
+
+---
+
+## 📘 Documentación del Sprint 2
+
+La implementación del sprint 2 quedó documentada en:
+- [docs/SPRINT2_GUIDE.md](docs/SPRINT2_GUIDE.md)
+
+Ese documento incluye:
+- objetivos del sprint
+- arquitectura y navegación implementada
+- lista de pantallas y componentes principales
+- contratos del backend que consume la app
+- variables de entorno necesarias
+- validación ejecutada y limitaciones conocidas
+- recomendaciones para continuidad
+
+La guía está pensada para que el equipo pueda mantener y ampliar la funcionalidad sin perder contexto ni repetir decisiones del diseño o la integración.
