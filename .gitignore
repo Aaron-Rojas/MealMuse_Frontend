@@ -2,8 +2,9 @@
 
 # dependencies
 node_modules/
-FIREBASE_EXPO_ENV_GUIDE.md
-SPRINT2_GUIDE.md
+docs/
+FIREBASE_EXPO_ENV_Guide.md
+SPRINT2_Guide.md
 
 # Expo
 .expo/
