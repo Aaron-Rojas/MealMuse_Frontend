@@ -1,11 +1,13 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+
+docs/
+FIREBASE_EXPO_ENV_guide.md
+SPRINT2_guide.md
+
 # dependencies
 node_modules/
-docs/
 
-docs/FIREBASE_EXPO_ENV_guide.md
-docs/SPRINT2_guide.md
 
 # Expo
 .expo/
