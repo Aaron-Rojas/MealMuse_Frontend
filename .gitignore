@@ -4,8 +4,8 @@
 node_modules/
 docs/
 
-FIREBASE_EXPO_ENV_Guide.md
-SPRINT2_Guide.md
+docs/FIREBASE_EXPO_ENV_guide.md
+docs/SPRINT2_guide.md
 
 # Expo
 .expo/
