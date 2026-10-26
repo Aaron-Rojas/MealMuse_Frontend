@@ -19,4 +19,5 @@ test('does not infer expiration status when the backend state is missing', () =>
   assert.equal(getExpiryBadgeConfig({ dias_para_vencer: -3 }).label, 'Sin fecha');
   assert.equal(getExpiryBadgeConfig({ dias_para_vencer: 3 }).label, 'Sin fecha');
   assert.equal(getExpiryBadgeConfig({ dias_para_vencer: 7 }).label, 'Sin fecha');
+  assert.equal(getExpiryBadgeConfig({ status: 'vencido', dias_para_vencer: -3 }).label, 'Sin fecha');
 });

@@ -1,5 +1,5 @@
 export function getExpiryBadgeConfig(input = {}) {
-  const state = input.estado_vencimiento || input.status || null;
+  const state = input.estado_vencimiento || null;
   const days = typeof input.dias_para_vencer === 'number' && Number.isFinite(input.dias_para_vencer)
     ? input.dias_para_vencer
     : null;
