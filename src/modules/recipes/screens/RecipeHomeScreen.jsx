@@ -2,13 +2,15 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { getPantrySummary, listFavorites, getProfile } from '../../../services/api';
+import { getPantrySummary, listFavorites, getProfile, getCachedFavorites } from '../../../services/api';
 import { colors } from '../../../theme/colors';
 
 export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
   const [profileName, setProfileName] = useState('Esther');
   const [summary, setSummary] = useState({ por_vencer: 0, vencidos: 0 });
-  const [favorites, setFavorites] = useState([]);
+  const [favorites, setFavorites] = useState(() => getCachedFavorites() || []);
+  const [isFavoritesLoading, setIsFavoritesLoading] = useState(false);
+  const [favoritesError, setFavoritesError] = useState('');
 
   const loadProfile = useCallback(async () => {
     try {
@@ -34,12 +36,16 @@ export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
   }, []);
 
   const loadFavorites = useCallback(async () => {
+    setIsFavoritesLoading(!getCachedFavorites()?.length);
+    setFavoritesError('');
     try {
-      const data = await listFavorites();
-      setFavorites(Array.isArray(data) ? data : []);
+      const data = await listFavorites({ refresh: true });
+      setFavorites(data);
     } catch (error) {
       console.warn('loadFavorites:', error);
-      setFavorites([]);
+      setFavoritesError(error?.message || 'No se pudieron cargar tus favoritas.');
+    } finally {
+      setIsFavoritesLoading(false);
     }
   }, []);
 
@@ -95,7 +101,13 @@ export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
         <View style={styles.favoriteSection}>
           <Text style={styles.sectionTitle}>Recetas favoritas</Text>
           <View style={styles.favoriteGrid}>
-            {favorites.length ? (
+            {isFavoritesLoading ? (
+              <Text style={styles.favoriteStateText}>Cargando tus favoritas…</Text>
+            ) : favoritesError ? (
+              <TouchableOpacity style={styles.emptyFavoriteCard} onPress={loadFavorites}>
+                <Text style={styles.favoriteErrorText}>{favoritesError} Toca para reintentar.</Text>
+              </TouchableOpacity>
+            ) : favorites.length ? (
               favorites.slice(0, 4).map((favorite) => (
                 <TouchableOpacity key={favorite.id ?? favorite.nombre} style={styles.favoriteCard} onPress={() => navigation.navigate('Receta', { recipe: favorite.receta || favorite })}>
                   <Text style={styles.favoriteName}>{favorite.nombre || favorite.receta?.nombre || 'Receta guardada'}</Text>
@@ -141,6 +153,8 @@ const styles = StyleSheet.create({
   favoriteName: { fontSize: 14, fontWeight: '600', color: colors.text.primary },
   emptyFavoriteCard: { width: '100%', backgroundColor: '#F4F4F4', borderWidth: 1, borderColor: colors.border.light, borderRadius: 12, padding: 18, alignItems: 'center' },
   emptyFavoriteText: { color: colors.text.secondary },
+  favoriteStateText: { color: colors.text.secondary, padding: 14 },
+  favoriteErrorText: { color: colors.error.text, textAlign: 'center' },
   settingsButton: { marginTop: 22, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.primaryLight, alignItems: 'center' },
   settingsText: { color: colors.primary, fontWeight: '700', fontSize: 16 },
 });

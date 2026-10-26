@@ -55,7 +55,7 @@ export const NutritionCard = ({ recipe }) => {
                   styles.barSegment,
                   {
                     flexGrow: value,
-                    backgroundColor: row.key === 'proteinas' ? '#2E9461' : row.key === 'carbohidratos' ? '#F59E0B' : '#8B5CF6',
+                    backgroundColor: row.key === 'proteinas' ? colors.status.success : row.key === 'carbohidratos' ? colors.status.warning : colors.status.info,
                   },
                 ]}
               />

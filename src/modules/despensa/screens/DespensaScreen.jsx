@@ -15,23 +15,24 @@ import { IngredientCard } from '../components/IngredientCard';
 import { AddIngredientModal } from '../components/AddIngredientModal';
 import { FloatingActionButton } from '../../../shared/components/atoms/FloatingActionButton';
 import { colors } from '../../../theme/colors';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../../config/firebase';
-import { getPantry, addPantryItem, updatePantryItem, deletePantryItem } from '../../../services/api';
+import { getPantry, addPantryItem, updatePantryItem, deletePantryItem, logoutFromBackend } from '../../../services/api';
 
 function transformBackendItem(item) {
   if (item?.id == null) {
     throw new Error('Un ingrediente de la despensa no incluye un identificador');
   }
   const safeName = item?.ingrediente || item?.name || 'Ingrediente';
-  const safeQuantity = item?.cantidad != null ? `${Number(item.cantidad)} ${item.unidad || ''}`.trim() : null;
+  const numericQuantity = Number(item?.cantidad);
+  const safeQuantity = item?.cantidad != null && Number.isFinite(numericQuantity)
+    ? `${numericQuantity} ${item.unidad || ''}`.trim()
+    : null;
 
   return {
     id: String(item.id),
     backendId: item?.id,
     name: safeName,
     quantity: safeQuantity,
-    cantidad: item?.cantidad ?? null,
+    cantidad: safeQuantity ? numericQuantity : null,
     unidad: item?.unidad ?? null,
     fecha_caducidad: item?.fecha_caducidad ?? null,
     fechaVencimiento: item?.fechaVencimiento ?? '',
@@ -76,16 +77,18 @@ export const DespensaScreen = ({ navigation = { navigate: () => {}, replace: () 
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await logoutFromBackend();
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
-    }
-    if (navigation && typeof navigation.replace === 'function') {
-      navigation.replace('Login');
-    } else if (navigation && typeof navigation.reset === 'function') {
-      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-    } else if (navigation && typeof navigation.navigate === 'function') {
-      navigation.navigate('Login');
+      Alert.alert('Error', 'No se pudo cerrar la sesión de forma segura.');
+    } finally {
+      if (navigation && typeof navigation.reset === 'function') {
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+      } else if (navigation && typeof navigation.replace === 'function') {
+        navigation.replace('Login');
+      } else if (navigation && typeof navigation.navigate === 'function') {
+        navigation.navigate('Login');
+      }
     }
   };
 
@@ -124,7 +127,7 @@ export const DespensaScreen = ({ navigation = { navigate: () => {}, replace: () 
       throw new Error('El nombre del ingrediente es obligatorio');
     }
 
-    if (Number.isNaN(payload.cantidad) || payload.cantidad <= 0) {
+    if (!Number.isFinite(payload.cantidad) || payload.cantidad <= 0) {
       throw new Error('La cantidad debe ser un número mayor a 0');
     }
 

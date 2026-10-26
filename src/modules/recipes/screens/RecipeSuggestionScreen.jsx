@@ -1,8 +1,8 @@
-﻿import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { deleteFavorite, generateRecipe, listFavorites, saveFavorite } from '../../../services/api';
+import { deleteFavorite, generateRecipe, getCachedFavorites, listFavorites, saveFavorite } from '../../../services/api';
 import { isRecipeFavorite } from '../../../services/favoritesUtils';
 import { normalizeMissingIngredients } from '../../../services/favoritesUtils';
 import { getCaloriesLabel, getSafetyMessage } from '../../../services/recipeUtils';
@@ -14,16 +14,19 @@ export const RecipeSuggestionScreen = ({ navigation, route }) => {
   const [activeTab, setActiveTab] = useState('preparacion');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
-  const [favorites, setFavorites] = useState([]);
+  const [favorites, setFavorites] = useState(() => getCachedFavorites() || []);
+  const [favoritesError, setFavoritesError] = useState('');
   const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false);
+  const favoriteUpdateLock = useRef(false);
 
   const loadFavorites = useCallback(async () => {
+    setFavoritesError('');
     try {
-      const data = await listFavorites();
-      setFavorites(Array.isArray(data) ? data : []);
+      const data = await listFavorites({ refresh: true });
+      setFavorites(data);
     } catch (error) {
       console.warn('loadFavorites:', error);
-      setFavorites([]);
+      setFavoritesError(error?.message || 'No se pudieron cargar tus favoritas.');
     }
   }, []);
 
@@ -52,6 +55,7 @@ export const RecipeSuggestionScreen = ({ navigation, route }) => {
   useEffect(() => {
     if (route?.params?.recipe) {
       setRecipe(route.params.recipe);
+      setActiveTab('preparacion');
       setIsLoading(false);
       setErrorMessage('');
       return;
@@ -69,28 +73,42 @@ export const RecipeSuggestionScreen = ({ navigation, route }) => {
   const isFavorite = !!favoriteRecipe || isRecipeFavorite(recipe, favorites);
 
   const toggleFavorite = async () => {
-    if (!recipe?.nombre || isUpdatingFavorite) return;
+    if (!recipe?.nombre || favoriteUpdateLock.current) return;
 
     const previousFavorites = [...favorites];
-    const nextFavorites = isFavorite
+    const removingFavorite = isFavorite;
+    if (removingFavorite && !favoriteRecipe?.id) {
+      Alert.alert('No se pudo actualizar', 'No se encontró el identificador de esta receta favorita.');
+      return;
+    }
+
+    const nextFavorites = removingFavorite
       ? favorites.filter((item) => (item?.nombre || item?.receta?.nombre) !== recipe.nombre)
       : [...favorites, { nombre: recipe.nombre, receta: recipe }];
 
+    favoriteUpdateLock.current = true;
     setFavorites(nextFavorites);
     setIsUpdatingFavorite(true);
 
     try {
-      if (isFavorite && favoriteRecipe?.id) {
+      if (removingFavorite) {
         await deleteFavorite(favoriteRecipe.id);
+      } else {
+        const savedFavorite = await saveFavorite(recipe);
+        setFavorites((current) => [
+          ...current.filter((item) => (item?.nombre || item?.receta?.nombre) !== recipe.nombre),
+          savedFavorite,
+        ]);
+      }
+    } catch (error) {
+      if (removingFavorite && error?.status === 404) {
+        setFavorites(nextFavorites);
         return;
       }
-
-      await saveFavorite(recipe);
-      await loadFavorites();
-    } catch (error) {
       setFavorites(previousFavorites);
-      Alert.alert('No se pudo guardar', 'La receta no pudo actualizarse en favoritos.');
+      Alert.alert('No se pudo actualizar', error?.message || 'La receta no pudo actualizarse en favoritos.');
     } finally {
+      favoriteUpdateLock.current = false;
       setIsUpdatingFavorite(false);
     }
   };
@@ -113,13 +131,18 @@ export const RecipeSuggestionScreen = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={toggleFavorite}
           style={styles.favoriteButton}
-          disabled={isUpdatingFavorite}
+          disabled={!recipe?.nombre || isUpdatingFavorite}
           accessibilityRole="button"
           accessibilityLabel={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
         >
           <Text style={[styles.favoriteIcon, isFavorite && styles.favoriteIconActive]}>{isFavorite ? '♥' : '♡'}</Text>
         </TouchableOpacity>
       </View>
+      {favoritesError ? (
+        <TouchableOpacity style={styles.favoriteErrorBanner} onPress={loadFavorites}>
+          <Text style={styles.favoriteErrorText}>{favoritesError} Toca para reintentar.</Text>
+        </TouchableOpacity>
+      ) : null}
 
       {isLoading ? (
         <View style={styles.loaderWrap}>
@@ -227,7 +250,7 @@ export const RecipeSuggestionScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background.main },
   headerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10 },
-  backButton: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   backIcon: { fontSize: 34, lineHeight: 34, fontWeight: '300', color: colors.text.primary },
   headerTitle: { flex: 1, fontSize: 28, fontWeight: '700', color: colors.text.primary },
   content: { padding: 18, paddingBottom: 30 },
@@ -254,16 +277,18 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', marginTop: 18, gap: 12 },
   secondaryAction: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.primaryLight, alignItems: 'center' },
   secondaryActionText: { color: colors.primary, fontWeight: '700' },
-  primaryAction: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' },
+  primaryAction: { flex: 1, minHeight: 44, justifyContent: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' },
   primaryActionText: { color: '#fff', fontWeight: '700' },
   loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loaderText: { marginTop: 12, color: colors.text.secondary },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyTitle: { fontSize: 22, fontWeight: '700', color: colors.text.primary, marginBottom: 8 },
   emptyText: { color: colors.text.secondary, textAlign: 'center', marginBottom: 16 },
-  favoriteButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: colors.border.light },
+  favoriteButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background.surface, borderWidth: 1, borderColor: colors.border.light },
+  favoriteErrorBanner: { marginHorizontal: 18, marginTop: 8, padding: 12, borderRadius: 10, backgroundColor: colors.error.background },
+  favoriteErrorText: { color: colors.error.text, textAlign: 'center' },
   favoriteIcon: { fontSize: 22, color: colors.text.secondary },
-  favoriteIconActive: { color: '#F59E0B' },
+  favoriteIconActive: { color: colors.status.warning },
   emptyMissingState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 18 },
   emptyMissingIcon: { fontSize: 28, color: colors.primary, fontWeight: '700' },
   emptyMissingText: { marginTop: 8, color: colors.text.primary, fontWeight: '600' },
