@@ -124,3 +124,49 @@ Ese documento incluye:
 - recomendaciones para continuidad
 
 La guía está pensada para que el equipo pueda mantener y ampliar la funcionalidad sin perder contexto ni repetir decisiones del diseño o la integración.
+
+---
+
+## Sprint 3: vencimientos, recetas y favoritas
+
+### Funcionalidad incluida
+
+- **HU-05 — Visibilidad de vencimientos:** la despensa consume la lista ordenada por el backend, muestra sus estados sin recalcular fechas, permite crear/editar/eliminar ingredientes y vuelve a cargar los datos. Inicio muestra el resumen de ingredientes por vencer y vencidos.
+- **HU-09 — Información nutricional:** el detalle de receta muestra calorías y macronutrientes por porción; los valores ausentes se presentan como “Sin dato” y la barra solo aparece con los tres macros disponibles.
+- **HU-10 — Ingredientes faltantes:** el detalle incluye la pestaña Faltantes, cantidades/unidades solo cuando existen, notas del backend y un estado positivo cuando no faltan ingredientes.
+- **HU-12 — Recetas favoritas:** guardar/quitar desde el detalle, lista persistida por usuario en el backend, apertura del detalle guardado y eliminación con confirmación.
+
+### Archivos principales
+
+```text
+src/
+├── modules/
+│   ├── despensa/
+│   │   ├── components/
+│   │   │   ├── AddIngredientModal.jsx
+│   │   │   └── IngredientCard.jsx
+│   │   └── screens/DespensaScreen.jsx
+│   └── recipes/
+│       ├── components/NutritionCard.jsx
+│       └── screens/
+│           ├── FavoritesScreen.jsx
+│           ├── RecipeHomeScreen.jsx
+│           └── RecipeSuggestionScreen.jsx
+├── services/
+│   ├── api.ts
+│   ├── expiryUtils.js
+│   └── favoritesUtils.js
+└── shared/components/molecules/ExpiryBadge.jsx
+```
+
+### Endpoints consumidos
+
+- `GET /api/v1/pantry/`, `POST /api/v1/pantry/`, `PUT /api/v1/pantry/{item_id}`, `DELETE /api/v1/pantry/{item_id}`
+- `GET /api/v1/pantry/expiring-summary`
+- `POST /api/v1/recipes/generate`
+- `GET /api/v1/recipes/favorites`, `POST /api/v1/recipes/favorites`
+- `GET /api/v1/recipes/favorites/{favorite_id}`, `DELETE /api/v1/recipes/favorites/{favorite_id}`
+
+Todas las llamadas HTTP se centralizan en `src/services/api.ts`. La URL base se configura mediante `EXPO_PUBLIC_API_BASE_URL`; no debe almacenarse una URL personal en el repositorio.
+
+Los pasos de validación manual para Expo Go y los resultados esperados están en [docs/QA_SPRINT3.md](docs/QA_SPRINT3.md).
