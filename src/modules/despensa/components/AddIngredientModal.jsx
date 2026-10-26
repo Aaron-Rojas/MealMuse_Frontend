@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   View,
@@ -56,6 +56,8 @@ export const AddIngredientModal = ({
   visible = false,
   onClose = () => { },
   onSave = () => { },
+  initialValues = null,
+  submitLabel = 'Guardar ingrediente',
 }) => {
   // 1. Estado centralizado del formulario
   const [formData, setFormData] = useState(INITIAL_FORM_STATE);
@@ -68,6 +70,12 @@ export const AddIngredientModal = ({
 
   // Estado para mostrar el picker de unidades
   const [showUnitPicker, setShowUnitPicker] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    setFormData(initialValues ? { ...INITIAL_FORM_STATE, ...initialValues } : INITIAL_FORM_STATE);
+    setErrors({});
+  }, [initialValues, visible]);
 
   /**
    * Manejador genérico para actualizar dinámicamente cualquier campo del formulario
@@ -169,7 +177,7 @@ export const AddIngredientModal = ({
 
             {/* Cabecera: Título y botón cerrar "✕" */}
             <View style={styles.headerRow}>
-              <Text style={styles.sheetTitle}>Agregar ingrediente</Text>
+              <Text style={styles.sheetTitle}>{initialValues ? 'Editar ingrediente' : 'Agregar ingrediente'}</Text>
               <TouchableOpacity
                 onPress={handleCloseModal}
                 activeOpacity={0.7}
@@ -309,6 +317,9 @@ export const AddIngredientModal = ({
                   placeholder="dd/mm/aaaa"
                 />
               </View>
+              {errors.general ? (
+                <Text style={styles.fieldErrorText}>{errors.general}</Text>
+              ) : null}
 
               {/* Banner Informativo Verde */}
               <View style={styles.infoBanner}>
@@ -319,7 +330,7 @@ export const AddIngredientModal = ({
 
               {/* Botón Guardar */}
               <PrimaryButton
-                title="Guardar ingrediente"
+                title={submitLabel}
                 onPress={handleSubmit}
                 loading={isSubmitting}
                 style={styles.saveButton}
@@ -376,7 +387,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   closeButton: {
-    padding: 6,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },

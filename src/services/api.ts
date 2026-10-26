@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+﻿import * as SecureStore from 'expo-secure-store';
 import { auth } from '../config/firebase';
 
 const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000';
@@ -10,6 +10,10 @@ function parseErrorResponse(value: unknown): string {
   if (typeof value === 'object') {
     const candidate = value as Record<string, unknown>;
     if (typeof candidate.detail === 'string') return candidate.detail;
+    if (typeof candidate.detail === 'object') {
+      const detail = candidate.detail as Record<string, unknown>;
+      if (typeof detail.msg === 'string') return detail.msg;
+    }
     if (typeof candidate.message === 'string') return candidate.message;
     if (typeof candidate.error === 'string') return candidate.error;
     if (Array.isArray(candidate.errors)) {
@@ -50,6 +54,15 @@ async function ensureStoredSession() {
   throw new Error('La sesión ha expirado');
 }
 
+function normalizeJsonBody(rawText: string) {
+  if (!rawText) return null;
+  try {
+    return JSON.parse(rawText);
+  } catch (error) {
+    return rawText;
+  }
+}
+
 async function requestJson<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -69,17 +82,92 @@ async function requestJson<T>(
 
   const res = await fetch(url, { ...options, headers: requestHeaders });
   const rawText = await res.text();
-  const parsed = rawText ? JSON.parse(rawText) : null;
+  const parsed = normalizeJsonBody(rawText);
 
   if (!res.ok) {
     const message = parseErrorResponse(parsed);
     const error = new Error(message) as Error & { status?: number; data?: unknown };
     error.status = res.status;
     error.data = parsed;
+
+    if (res.status === 401) {
+      await clearAccessToken();
+    }
+
     throw error;
   }
 
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   return parsed as T;
+}
+
+export function normalizePantryPayload(data: {
+  ingrediente: string;
+  cantidad: number | string;
+  unidad: string;
+  fechaVencimiento?: string | null;
+  fecha_caducidad?: string | null;
+}) {
+  const nextUnidad = String(data.unidad || '').trim();
+  const normalizedUnidad = nextUnidad.toLowerCase();
+
+  let normalizedValue = 'unidades';
+  if (normalizedUnidad === 'unidad') normalizedValue = 'unidades';
+  else if (normalizedUnidad === 'unidades') normalizedValue = 'unidades';
+  else if (normalizedUnidad === 'l' || normalizedUnidad === 'litro' || normalizedUnidad === 'litros') normalizedValue = 'L';
+  else if (normalizedUnidad === 'ml' || normalizedUnidad === 'mililitro' || normalizedUnidad === 'mililitros') normalizedValue = 'ml';
+  else if (normalizedUnidad) normalizedValue = nextUnidad;
+
+  const rawDate = data.fechaVencimiento ?? data.fecha_caducidad ?? null;
+  const parseDate = (input?: string | null) => {
+    if (!input || !input.trim()) return null;
+    const trimmed = input.trim();
+    let isoDate = trimmed;
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      const [day, month, year] = trimmed.split('/');
+      isoDate = `${year}-${month}-${day}`;
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      throw new Error('La fecha debe tener el formato dd/mm/aaaa');
+    }
+
+    const [year, month, day] = isoDate.split('-').map(Number);
+    const parsedDate = new Date(Date.UTC(year, month - 1, day));
+    if (
+      parsedDate.getUTCFullYear() !== year
+      || parsedDate.getUTCMonth() !== month - 1
+      || parsedDate.getUTCDate() !== day
+    ) {
+      throw new Error('La fecha de vencimiento no es válida');
+    }
+
+    return isoDate;
+  };
+
+  return {
+    ingrediente: String(data.ingrediente || '').trim(),
+    cantidad: Number(data.cantidad),
+    unidad: normalizedValue,
+    fecha_caducidad: parseDate(rawDate),
+  };
+}
+
+function formatPantryDateForInput(value: unknown): string {
+  if (typeof value !== 'string' || !value) return '';
+  const isoDate = value.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return '';
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function normalizePantryItem<T extends Record<string, unknown>>(item: T): T & { fechaVencimiento: string } {
+  return {
+    ...item,
+    fechaVencimiento: formatPantryDateForInput(item.fecha_caducidad),
+  };
 }
 
 export async function syncWithBackend(idToken: string) {
@@ -90,7 +178,7 @@ export async function syncWithBackend(idToken: string) {
   });
 
   const rawText = await res.text();
-  const payload = rawText ? JSON.parse(rawText) : null;
+  const payload = normalizeJsonBody(rawText);
 
   if (!res.ok) {
     const error = new Error(parseErrorResponse(payload)) as Error & { status?: number };
@@ -146,23 +234,45 @@ export async function updateProfileRestrictions(allergies: string[]) {
 }
 
 export async function getPantry() {
-  return requestJson('/api/v1/pantry/', { method: 'GET' }, { requireAuth: true });
+  const pantry = await requestJson<unknown>('/api/v1/pantry/', { method: 'GET' }, { requireAuth: true });
+  if (!Array.isArray(pantry)) {
+    throw new Error('La respuesta de despensa no tiene un formato válido');
+  }
+  return pantry.map((item) => normalizePantryItem(item));
+}
+
+export async function getPantrySummary() {
+  return requestJson('/api/v1/pantry/expiring-summary', { method: 'GET' }, { requireAuth: true });
 }
 
 export async function addPantryItem(data: {
   ingrediente: string;
-  cantidad: number;
+  cantidad: number | string;
   unidad: string;
+  fechaVencimiento?: string | null;
   fecha_caducidad?: string | null;
 }) {
-  return requestJson(
-    '/api/v1/pantry/',
-    {
-      method: 'POST',
-      body: JSON.stringify(data),
-    },
-    { requireAuth: true }
-  );
+  const payload = normalizePantryPayload(data);
+  const item = await requestJson<Record<string, unknown>>('/api/v1/pantry/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, { requireAuth: true });
+  return normalizePantryItem(item);
+}
+
+export async function updatePantryItem(id: string, data: {
+  ingrediente: string;
+  cantidad: number | string;
+  unidad: string;
+  fechaVencimiento?: string | null;
+  fecha_caducidad?: string | null;
+}) {
+  const payload = normalizePantryPayload(data);
+  const item = await requestJson<Record<string, unknown>>(`/api/v1/pantry/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, { requireAuth: true });
+  return normalizePantryItem(item);
 }
 
 export async function deletePantryItem(id: string) {
@@ -179,6 +289,25 @@ export async function generateRecipe(excludedRecipeName?: string) {
     },
     { requireAuth: true }
   );
+}
+
+export async function listFavorites() {
+  return requestJson('/api/v1/recipes/favorites', { method: 'GET' }, { requireAuth: true });
+}
+
+export async function saveFavorite(recipe: Record<string, any>) {
+  return requestJson('/api/v1/recipes/favorites', {
+    method: 'POST',
+    body: JSON.stringify(recipe),
+  }, { requireAuth: true });
+}
+
+export async function getFavorite(id: string) {
+  return requestJson(`/api/v1/recipes/favorites/${id}`, { method: 'GET' }, { requireAuth: true });
+}
+
+export async function deleteFavorite(id: string) {
+  return requestJson(`/api/v1/recipes/favorites/${id}`, { method: 'DELETE' }, { requireAuth: true });
 }
 
 export async function getStoredAccessToken() {
