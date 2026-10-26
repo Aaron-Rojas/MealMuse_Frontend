@@ -170,3 +170,5 @@ src/
 Todas las llamadas HTTP se centralizan en `src/services/api.ts`. La URL base se configura mediante `EXPO_PUBLIC_API_BASE_URL`; no debe almacenarse una URL personal en el repositorio.
 
 Los pasos de validación manual para Expo Go y los resultados esperados están en [docs/QA_SPRINT3.md](docs/QA_SPRINT3.md).
+
+La guía técnica completa del sprint, con las historias, contratos del backend, decisiones de implementación y validación, está en [docs/SPRINT3_GUIDE.md](docs/SPRINT3_GUIDE.md).
