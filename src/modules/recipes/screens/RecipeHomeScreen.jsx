@@ -1,17 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+﻿import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getPantry, getProfile } from '../../../services/api';
+import { useFocusEffect } from '@react-navigation/native';
+import { getPantrySummary, listFavorites, getProfile, getCachedFavorites } from '../../../services/api';
 import { colors } from '../../../theme/colors';
-
-const FAVORITES_KEY = 'mealmuse_favorites';
 
 export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
   const [profileName, setProfileName] = useState('Esther');
-  const [pantryItems, setPantryItems] = useState([]);
-  const [favorites, setFavorites] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [summary, setSummary] = useState({ por_vencer: 0, vencidos: 0 });
+  const [favorites, setFavorites] = useState(() => getCachedFavorites() || []);
+  const [isFavoritesLoading, setIsFavoritesLoading] = useState(false);
+  const [favoritesError, setFavoritesError] = useState('');
 
   const loadProfile = useCallback(async () => {
     try {
@@ -23,50 +22,52 @@ export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
     }
   }, []);
 
-  const loadPantry = useCallback(async () => {
+  const loadPantrySummary = useCallback(async () => {
     try {
-      const pantry = await getPantry();
-      setPantryItems(Array.isArray(pantry) ? pantry : []);
+      const nextSummary = await getPantrySummary();
+      setSummary({
+        por_vencer: Number(nextSummary?.por_vencer || 0),
+        vencidos: Number(nextSummary?.vencidos || 0),
+      });
     } catch (error) {
-      console.warn('loadPantry:', error);
-      setPantryItems([]);
+      console.warn('loadPantrySummary:', error);
+      setSummary({ por_vencer: 0, vencidos: 0 });
     }
   }, []);
 
   const loadFavorites = useCallback(async () => {
+    setIsFavoritesLoading(!getCachedFavorites()?.length);
+    setFavoritesError('');
     try {
-      const raw = await AsyncStorage.getItem(FAVORITES_KEY);
-      setFavorites(raw ? JSON.parse(raw) : []);
+      const data = await listFavorites({ refresh: true });
+      setFavorites(data);
     } catch (error) {
       console.warn('loadFavorites:', error);
-      setFavorites([]);
+      setFavoritesError(error?.message || 'No se pudieron cargar tus favoritas.');
+    } finally {
+      setIsFavoritesLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    const bootstrap = async () => {
-      setIsLoading(true);
-      await Promise.allSettled([loadProfile(), loadPantry(), loadFavorites()]);
-      setIsLoading(false);
-    };
-    bootstrap();
-  }, [loadProfile, loadPantry, loadFavorites]);
-
-  const expiringSoon = pantryItems.filter((item) => {
-    if (!item?.fecha_caducidad) return false;
-    const expireDate = new Date(item.fecha_caducidad);
-    if (Number.isNaN(expireDate.getTime())) return false;
-    const diffDays = Math.ceil((expireDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    return diffDays <= 5;
-  });
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+      loadPantrySummary();
+      loadFavorites();
+    }, [loadProfile, loadPantrySummary, loadFavorites])
+  );
 
   const handleSuggestRecipe = () => {
-    if (!pantryItems.length) {
-      Alert.alert('Sin ingredientes en la despensa', 'Agrega productos antes de pedir una receta sugerida.');
-      return;
-    }
     navigation.navigate('Receta');
   };
+
+  const bannerPorVencer = summary.por_vencer > 0
+    ? `Tienes ${summary.por_vencer} ingrediente${summary.por_vencer === 1 ? '' : 's'} por vencer`
+    : null;
+
+  const bannerVencidos = summary.vencidos > 0
+    ? `${summary.vencidos} ingrediente${summary.vencidos === 1 ? '' : 's'} vencido${summary.vencidos === 1 ? '' : 's'}`
+    : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -74,17 +75,22 @@ export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
         <Text style={styles.greeting}>Hola, {profileName}</Text>
         <Text style={styles.subGreeting}>¿Qué preparamos hoy?</Text>
 
-        {expiringSoon.length > 0 ? (
-          <View style={styles.warningCard}>
-            <Text style={styles.warningTitle}>{expiringSoon.length} ingredientes por vencer</Text>
-            <Text style={styles.warningSubtitle}>Espirina, tomate y huevos vencen esta semana</Text>
+        {bannerPorVencer ? (
+          <TouchableOpacity style={styles.warningCard} onPress={() => navigation.navigate('Despensa')}>
+            <Text style={styles.warningTitle}>{bannerPorVencer}</Text>
+            <Text style={styles.warningSubtitle}>Toca para revisar tu despensa.</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {bannerVencidos ? (
+          <View style={styles.dangerCard}>
+            <Text style={styles.dangerTitle}>{bannerVencidos}</Text>
+            <Text style={styles.warningSubtitle}>Revisa los productos caducados antes de cocinar.</Text>
           </View>
         ) : null}
 
         <View style={styles.primaryCard}>
-          <View style={styles.primaryIconWrap}>
-            <Text style={styles.primaryIcon}>✦</Text>
-          </View>
+          <View style={styles.primaryIconWrap}><Text style={styles.primaryIcon}>✦</Text></View>
           <Text style={styles.primaryTitle}>Sugerir receta</Text>
           <Text style={styles.primarySubtitle}>Basada en tu despensa y tus alergias</Text>
           <TouchableOpacity style={styles.primaryButton} onPress={handleSuggestRecipe}>
@@ -95,10 +101,16 @@ export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
         <View style={styles.favoriteSection}>
           <Text style={styles.sectionTitle}>Recetas favoritas</Text>
           <View style={styles.favoriteGrid}>
-            {favorites.length ? (
-              favorites.map((favorite) => (
-                <TouchableOpacity key={favorite} style={styles.favoriteCard}>
-                  <Text style={styles.favoriteName}>{favorite}</Text>
+            {isFavoritesLoading ? (
+              <Text style={styles.favoriteStateText}>Cargando tus favoritas…</Text>
+            ) : favoritesError ? (
+              <TouchableOpacity style={styles.emptyFavoriteCard} onPress={loadFavorites}>
+                <Text style={styles.favoriteErrorText}>{favoritesError} Toca para reintentar.</Text>
+              </TouchableOpacity>
+            ) : favorites.length ? (
+              favorites.slice(0, 4).map((favorite) => (
+                <TouchableOpacity key={favorite.id ?? favorite.nombre} style={styles.favoriteCard} onPress={() => navigation.navigate('Receta', { recipe: favorite.receta || favorite })}>
+                  <Text style={styles.favoriteName}>{favorite.nombre || favorite.receta?.nombre || 'Receta guardada'}</Text>
                 </TouchableOpacity>
               ))
             ) : (
@@ -118,138 +130,33 @@ export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background.main,
-  },
-  content: {
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    paddingBottom: 32,
-  },
-  greeting: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.text.primary,
-    marginTop: 12,
-  },
-  subGreeting: {
-    fontSize: 18,
-    color: colors.text.secondary,
-    marginBottom: 18,
-  },
-  warningCard: {
-    backgroundColor: '#FDE8E8',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 18,
-  },
-  warningTitle: {
-    color: '#B91C1C',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  warningSubtitle: {
-    color: '#9A3A3A',
-    marginTop: 4,
-  },
-  primaryCard: {
-    backgroundColor: '#2E9461',
-    borderRadius: 18,
-    paddingVertical: 28,
-    paddingHorizontal: 18,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  primaryIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  primaryIcon: {
-    fontSize: 28,
-    color: '#fff',
-  },
-  primaryTitle: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 26,
-    marginBottom: 8,
-  },
-  primarySubtitle: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 13,
-    marginBottom: 18,
-    textAlign: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#fff',
-    width: '100%',
-    borderRadius: 12,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 18,
-  },
-  favoriteSection: {
-    marginTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text.primary,
-    marginBottom: 10,
-  },
-  favoriteGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  favoriteCard: {
-    width: '48%',
-    backgroundColor: '#F7F7F7',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border.light,
-  },
-  favoriteName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  emptyFavoriteCard: {
-    width: '100%',
-    backgroundColor: '#F4F4F4',
-    borderWidth: 1,
-    borderColor: colors.border.light,
-    borderRadius: 12,
-    padding: 18,
-    alignItems: 'center',
-  },
-  emptyFavoriteText: {
-    color: colors.text.secondary,
-  },
-  settingsButton: {
-    marginTop: 22,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-  },
-  settingsText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 16,
-  },
+  safeArea: { flex: 1, backgroundColor: colors.background.main },
+  content: { paddingHorizontal: 18, paddingVertical: 18, paddingBottom: 32 },
+  greeting: { fontSize: 32, fontWeight: '700', color: colors.text.primary, marginTop: 12 },
+  subGreeting: { fontSize: 18, color: colors.text.secondary, marginBottom: 18 },
+  warningCard: { backgroundColor: colors.status.expiringBackground, borderRadius: 14, padding: 14, marginBottom: 12 },
+  dangerCard: { backgroundColor: colors.status.expiredBackground, borderRadius: 14, padding: 14, marginBottom: 12 },
+  warningTitle: { color: colors.status.expiringText, fontWeight: '700', fontSize: 16 },
+  dangerTitle: { color: colors.status.expiredText, fontWeight: '700', fontSize: 16 },
+  warningSubtitle: { color: '#9A3A3A', marginTop: 4 },
+  primaryCard: { backgroundColor: '#2E9461', borderRadius: 18, paddingVertical: 28, paddingHorizontal: 18, marginBottom: 20, alignItems: 'center' },
+  primaryIconWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  primaryIcon: { fontSize: 28, color: '#fff' },
+  primaryTitle: { color: '#fff', fontWeight: '700', fontSize: 26, marginBottom: 8 },
+  primarySubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginBottom: 18, textAlign: 'center' },
+  primaryButton: { backgroundColor: '#fff', width: '100%', borderRadius: 12, height: 52, alignItems: 'center', justifyContent: 'center' },
+  primaryButtonText: { color: colors.primary, fontWeight: '700', fontSize: 18 },
+  favoriteSection: { marginTop: 8 },
+  sectionTitle: { fontSize: 20, fontWeight: '700', color: colors.text.primary, marginBottom: 10 },
+  favoriteGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  favoriteCard: { width: '48%', backgroundColor: '#F7F7F7', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border.light },
+  favoriteName: { fontSize: 14, fontWeight: '600', color: colors.text.primary },
+  emptyFavoriteCard: { width: '100%', backgroundColor: '#F4F4F4', borderWidth: 1, borderColor: colors.border.light, borderRadius: 12, padding: 18, alignItems: 'center' },
+  emptyFavoriteText: { color: colors.text.secondary },
+  favoriteStateText: { color: colors.text.secondary, padding: 14 },
+  favoriteErrorText: { color: colors.error.text, textAlign: 'center' },
+  settingsButton: { marginTop: 22, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.primaryLight, alignItems: 'center' },
+  settingsText: { color: colors.primary, fontWeight: '700', fontSize: 16 },
 });
 
 export default RecipeHomeScreen;

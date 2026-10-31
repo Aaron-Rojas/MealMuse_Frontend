@@ -1,22 +1,10 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { InitialAvatar } from '../../../shared/components/atoms/InitialAvatar';
 import { ExpiryBadge } from '../../../shared/components/molecules/ExpiryBadge';
+import { getExpiryBadgeConfig } from '../../../services/expiryUtils';
 import { colors } from '../../../theme/colors';
 
-/**
- * IngredientCard - Componente de Organismo para Tarjetas de Ingrediente
- * 
- * ¿POR QUÉ?
- * Sintetiza la información fundamental de un alimento en la despensa (nombre, cantidad
- * y fecha límite de consumo) y provee interacciones táctiles tanto de toque corto como
- * de pulsación larga (`onLongPress`) para acciones contextuales como la eliminación.
- * 
- * ¿CÓMO?
- * - Se utiliza `<TouchableOpacity>` configurando las props `onPress` y `onLongPress`.
- * - Ensambla el átomo `InitialAvatar` a la izquierda, la columna de texto central y el `ExpiryBadge` a la derecha.
- * - Incluye valores por defecto seguros en todas sus propiedades para prevenir fallos en tiempo de ejecución.
- */
 export const IngredientCard = ({
   item = {},
   onPress = () => {},
@@ -25,38 +13,59 @@ export const IngredientCard = ({
 }) => {
   const {
     name = 'Ingrediente',
-    quantity = '1 unidad',
-    daysToExpiry = 7,
-    dias = null,
+    quantity = null,
+    estado_vencimiento = null,
+    dias_para_vencer = null,
+    cantidad = null,
+    unidad = null,
   } = item;
 
-  const expiryDays = typeof dias === 'number' ? dias : daysToExpiry;
+  const badgeSource = {
+    estado_vencimiento: estado_vencimiento || item.estado_vencimiento || null,
+    dias_para_vencer: typeof dias_para_vencer === 'number'
+      ? dias_para_vencer
+      : typeof item.dias_para_vencer === 'number'
+        ? item.dias_para_vencer
+        : null,
+  };
+
+  const quantityText = quantity || (cantidad != null ? `${cantidad} ${unidad || ''}`.trim() : null);
+  const cardState = badgeSource.estado_vencimiento;
+  const cardBackground = cardState === 'vencido'
+    ? colors.status.expiredBackground
+    : cardState === 'por_vencer'
+      ? colors.status.expiringBackground
+      : colors.background.card;
+  const cardBorder = cardState === 'vencido'
+    ? colors.status.expiredText
+    : cardState === 'por_vencer'
+      ? colors.status.expiringText
+      : colors.border.light;
+  const expiryLabel = getExpiryBadgeConfig(badgeSource).label;
 
   return (
     <TouchableOpacity
       onPress={() => onPress(item)}
       onLongPress={() => onLongPress(item)}
       activeOpacity={0.7}
-      style={[styles.card, style]}
+      style={[styles.card, { backgroundColor: cardBackground, borderColor: cardBorder }, style]}
       accessibilityRole="button"
-      accessibilityLabel={`${name}, ${quantity}, vence en ${expiryDays} días. Mantén presionado para opciones.`}
+      accessibilityLabel={`${name}${quantityText ? `, ${quantityText}` : ''}. ${expiryLabel}. Toca para editar; mantén presionado para eliminar.`}
     >
-      {/* 1. Avatar con letra inicial */}
       <InitialAvatar name={name} size={44} containerStyle={styles.avatarContainer} />
 
-      {/* 2. Información del Alimento */}
       <View style={styles.infoContainer}>
-        <Text style={styles.nameText} numberOfLines={1}>
-          {name}
-        </Text>
-        <Text style={styles.quantityText} numberOfLines={1}>
-          {quantity}
-        </Text>
+        <Text style={styles.nameText} numberOfLines={1}>{name}</Text>
+        {quantityText ? (
+          <Text style={styles.quantityText} numberOfLines={1}>{quantityText}</Text>
+        ) : null}
       </View>
 
-      {/* 3. Badge semántico de vencimiento */}
       <View style={styles.badgeContainer}>
-        <ExpiryBadge days={expiryDays} />
+        <ExpiryBadge
+          estado_vencimiento={badgeSource.estado_vencimiento}
+          dias_para_vencer={badgeSource.dias_para_vencer}
+        />
       </View>
     </TouchableOpacity>
   );
@@ -66,14 +75,12 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background.card,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.border.light,
-    // Sombras nativas para profundidad visual sutil
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -86,29 +93,11 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  avatarContainer: {
-    marginRight: 14,
-  },
-  infoContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  nameText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text.primary,
-    marginBottom: 4,
-    letterSpacing: -0.3,
-  },
-  quantityText: {
-    fontSize: 13,
-    color: colors.text.secondary,
-  },
-  badgeContainer: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
+  avatarContainer: { marginRight: 14 },
+  infoContainer: { flex: 1, justifyContent: 'center', marginRight: 8 },
+  nameText: { fontSize: 16, fontWeight: '700', color: colors.text.primary, marginBottom: 4, letterSpacing: -0.3 },
+  quantityText: { fontSize: 13, color: colors.text.secondary },
+  badgeContainer: { alignItems: 'flex-end', justifyContent: 'center' },
 });
 
 export default IngredientCard;
