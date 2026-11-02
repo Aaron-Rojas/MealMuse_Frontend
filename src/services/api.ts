@@ -1,4 +1,4 @@
-﻿import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from 'expo-secure-store';
 import { auth } from '../config/firebase';
 
 const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000';
@@ -172,10 +172,10 @@ export function normalizePantryPayload(data: {
   const nextUnidad = String(data.unidad || '').trim();
   const normalizedUnidad = nextUnidad.toLowerCase();
 
-  let normalizedValue = 'unidades';
-  if (normalizedUnidad === 'unidad') normalizedValue = 'unidades';
-  else if (normalizedUnidad === 'unidades') normalizedValue = 'unidades';
-  else if (normalizedUnidad === 'l' || normalizedUnidad === 'litro' || normalizedUnidad === 'litros') normalizedValue = 'L';
+  let normalizedValue = 'unidad';
+  if (normalizedUnidad === 'unidad') normalizedValue = 'unidad';
+  else if (normalizedUnidad === 'unidades') normalizedValue = 'unidad';
+  else if (normalizedUnidad === 'l' || normalizedUnidad === 'litro' || normalizedUnidad === 'litros') normalizedValue = 'l';
   else if (normalizedUnidad === 'ml' || normalizedUnidad === 'mililitro' || normalizedUnidad === 'mililitros') normalizedValue = 'ml';
   else if (normalizedUnidad) normalizedValue = nextUnidad;
 
