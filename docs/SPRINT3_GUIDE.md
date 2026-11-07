@@ -189,33 +189,31 @@ La rama no incorpora código ni modificaciones al backend.
 
 ## Pruebas y comprobaciones
 
-No hay una infraestructura de Jest ni React Native Testing Library en este proyecto. Se añadieron pruebas pequeñas con Node para utilidades puras:
+El proyecto conserva sus pruebas ligeras de Node para utilidades puras y ahora incorpora Jest compatible con Expo SDK 57 y React Native Testing Library para componentes y servicios. Los servicios HTTP se simulan en las pruebas; no se llama a la red del backend. Los casos y resultados por criterio de aceptación están en [`docs/pruebas/PRUEBAS_FRONTEND_SPRINT3.md`](./pruebas/PRUEBAS_FRONTEND_SPRINT3.md).
 
-- mapeo de vencimiento y rechazo de cualquier inferencia local;
-- normalización de faltantes, listas nulas y cantidades cero;
-- utilidades existentes de alergias, calorías y mensajes de seguridad.
-
-Validación ejecutada en la rama final:
+Validación ejecutada en `sprint3/test`:
 
 | Comando | Resultado |
 |---|---|
-| `npm test` | 8 pruebas aprobadas, 0 fallidas. |
+| `npm run test:all` | 8 pruebas Node y 35 pruebas Jest aprobadas; 0 fallidas. |
 | `npm run typecheck` | Aprobado. |
 | `npx expo-doctor` | 21/21 comprobaciones aprobadas. |
-| `npx expo export --platform android` | Bundle Android generado correctamente; no inicia un servidor de desarrollo. |
+| `npx expo export --platform android` | Export Android terminado; bundle Hermes de 2.3 MB. |
 | `git diff --check` | Sin errores de whitespace. |
 
-No se ejecutó `npx expo start` durante la reanudación, conforme a la instrucción de evitar un servidor interactivo que pueda congelar VS Code. Las pruebas visuales y con sesión real en Expo Go siguen siendo manuales.
+La cobertura de los seis módulos de frontend cubiertos por Jest es 63.63% de sentencias, 67.64% de funciones, 52.55% de ramas y 65.72% de líneas. La ejecución de despensa con 200 elementos midió 35 ms en Jest; ese tiempo no representa un dispositivo.
+
+No se ejecutó `npx expo start`. Las pruebas visuales y con sesión real en Expo Go siguen siendo manuales. En esta ejecución no estuvo disponible el `/openapi.json` configurado para volver a contrastar el contrato.
 
 ## Variables de entorno y Expo
 
 La base del backend se configura con `EXPO_PUBLIC_API_BASE_URL`. Las variables públicas de Firebase usadas por la app se leen desde el entorno local. No se debe registrar una URL personal, tokens ni claves secretas en el repositorio.
 
-El proyecto usa Expo SDK 57. La versión de `expo` se alineó a `~57.0.31` porque `expo-doctor` indicó que ese parche era el requerido por el SDK instalado. No se añadieron dependencias nuevas. La instalación informó advisories de npm; no se ejecutó una actualización automática forzada de paquetes ajenos al alcance.
+El proyecto usa Expo SDK 57 con `expo` `~57.0.32`, parche indicado por `expo-doctor`. Para habilitar pruebas de componentes se añadieron `jest-expo`, Jest y React Native Testing Library. La instalación informó advisories de npm; no se ejecutó una actualización automática forzada de paquetes ajenos al alcance.
 
 ## QA manual pendiente
 
-La integración de backend se contrastó con OpenAPI y el bundle se exportó, pero no se realizaron flujos autenticados en un dispositivo. Antes de considerar el sprint probado de extremo a extremo, ejecutar la lista de [`docs/QA_SPRINT3.md`](./QA_SPRINT3.md), especialmente:
+El `/openapi.json` no estuvo disponible en esta ejecución y no se realizaron flujos autenticados en un dispositivo. Antes de considerar el sprint probado de extremo a extremo, ejecutar la lista de [`docs/QA_SPRINT3.md`](./QA_SPRINT3.md), especialmente:
 
 1. Login y estados/orden de despensa.
 2. Edición de fecha y actualización de orden desde el backend.

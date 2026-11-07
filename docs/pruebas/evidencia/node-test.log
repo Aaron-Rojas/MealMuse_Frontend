@@ -1,0 +1,62 @@
+
+> frontend@1.0.0 test
+> node --test src/services/expiryUtils.test.js src/services/favoritesUtils.test.js src/services/recipeUtils.test.js
+
+TAP version 13
+# Subtest: maps pantry expiration states to user-friendly labels and colors
+ok 1 - maps pantry expiration states to user-friendly labels and colors
+  ---
+  duration_ms: 1.8362
+  type: 'test'
+  ...
+# Subtest: does not infer expiration status when the backend state is missing
+ok 2 - does not infer expiration status when the backend state is missing
+  ---
+  duration_ms: 0.522
+  type: 'test'
+  ...
+# Subtest: toggleFavoriteRecipe stores recipes by name and removes them once toggled off
+ok 3 - toggleFavoriteRecipe stores recipes by name and removes them once toggled off
+  ---
+  duration_ms: 2.3708
+  type: 'test'
+  ...
+# Subtest: normalizeMissingIngredients keeps the missing list safe even when quantity or unit are null
+ok 4 - normalizeMissingIngredients keeps the missing list safe even when quantity or unit are null
+  ---
+  duration_ms: 0.5783
+  type: 'test'
+  ...
+# Subtest: normalizeMissingIngredients preserves zero quantities and treats absent lists as empty
+ok 5 - normalizeMissingIngredients preserves zero quantities and treats absent lists as empty
+  ---
+  duration_ms: 1.6087
+  type: 'test'
+  ...
+# Subtest: normalizeAllergies keeps only valid backend values and preserves the allowed order
+ok 6 - normalizeAllergies keeps only valid backend values and preserves the allowed order
+  ---
+  duration_ms: 2.4524
+  type: 'test'
+  ...
+# Subtest: getCaloriesLabel handles unknown calorie data honestly
+ok 7 - getCaloriesLabel handles unknown calorie data honestly
+  ---
+  duration_ms: 0.4614
+  type: 'test'
+  ...
+# Subtest: getSafetyMessage communicates verification without guaranteeing medical safety
+ok 8 - getSafetyMessage communicates verification without guaranteeing medical safety
+  ---
+  duration_ms: 0.3685
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 178.5238

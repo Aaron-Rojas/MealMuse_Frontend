@@ -1,0 +1,25 @@
+
+> frontend@1.0.0 test:components
+> jest --runInBand --coverage --json --outputFile=docs\pruebas\evidencia\jest-results.json
+
+PASS src/modules/sprint3.jest.test.jsx
+  ● Console
+
+    console.info
+      [PR-F-02] El corazón cambió mientras el POST de 2000 ms continúa pendiente.
+
+      at Object.info (src/modules/sprint3.jest.test.jsx:256:11)
+
+    console.info
+      [PR-F-01] 200 elementos entregados a FlatList en 32.00 ms (entorno Jest; no dispositivo).
+
+      at Object.info (src/modules/sprint3.jest.test.jsx:338:11)
+
+PASS src/services/api.jest.test.js
+
+Test Suites: 2 passed, 2 total
+Tests:       35 passed, 35 total
+Snapshots:   0 total
+Time:        7.028 s
+Ran all test suites.
+Test results written to: docs\pruebas\evidencia\jest-results.json
