@@ -114,7 +114,7 @@ El detalle muestra una tarjeta por porción con:
 
 La barra solo se dibuja si los tres macros están presentes y son valores numéricos válidos. Si falta cualquiera, permanece la tabla y sus celdas faltantes dicen “Sin dato”. Cuando `nutricion` es `null`, las calorías heredadas de `calorias` solo se aceptan si son mayores que cero; no se convierte la ausencia en cero.
 
-El pie de la tarjeta conserva exactamente el aviso solicitado: **“Valores referenciales por porción; pueden variar según ingredientes y porciones.”**
+El pie de la tarjeta conserva exactamente el aviso solicitado: **“Valores referenciales por porción. No constituyen asesoría médica ni nutricional.”**
 
 ## HU-10 — Ingredientes faltantes
 

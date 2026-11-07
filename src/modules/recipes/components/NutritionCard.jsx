@@ -83,7 +83,7 @@ export const NutritionCard = ({ recipe }) => {
         ))}
       </View>
 
-      <Text style={styles.footer}>Valores referenciales por porción; pueden variar según ingredientes y porciones.</Text>
+      <Text style={styles.footer}>Valores referenciales por porción. No constituyen asesoría médica ni nutricional.</Text>
     </View>
   );
 };
