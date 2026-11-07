@@ -129,7 +129,7 @@ export const RecipeSuggestionScreen = ({ navigation, route }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Receta sugerida</Text>
         <TouchableOpacity
-          onPress={toggleFavorite}
+          onPress={() => { void toggleFavorite(); }}
           style={styles.favoriteButton}
           disabled={!recipe?.nombre || isUpdatingFavorite}
           accessibilityRole="button"
@@ -226,7 +226,7 @@ export const RecipeSuggestionScreen = ({ navigation, route }) => {
           )}
 
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.secondaryAction} onPress={toggleFavorite} disabled={isUpdatingFavorite}>
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => { void toggleFavorite(); }} disabled={isUpdatingFavorite}>
               <Text style={styles.secondaryActionText}>{isFavorite ? '⭐ Guardada' : 'Favoritos'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.primaryAction} onPress={handleAnotherRecipe}>
