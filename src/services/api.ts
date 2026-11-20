@@ -6,6 +6,8 @@ const ACCESS_TOKEN_KEY = 'mealmuse_access_token';
 const REQUEST_TIMEOUT_MS = 15000;
 const RECIPE_GENERATION_TIMEOUT_MS = 60000;
 let authenticationExpiredHandler: (() => void) | null = null;
+let activeUserId: string | null = null;
+const sessionClearListeners = new Set<(userId: string | null) => void>();
 
 type FavoriteRead = {
   id: string;
@@ -15,6 +17,36 @@ type FavoriteRead = {
 };
 
 let favoritesCache: FavoriteRead[] | null = null;
+
+export function getActiveUserId(): string | null {
+  return activeUserId;
+}
+
+export function getErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null;
+  const data = (error as { data?: unknown }).data;
+  if (!data || typeof data !== 'object') return null;
+  const detail = (data as Record<string, unknown>).detail;
+  if (!detail || typeof detail !== 'object') return null;
+  const code = (detail as Record<string, unknown>).code;
+  return typeof code === 'string' ? code : null;
+}
+
+export function registerSessionClearListener(fn: (userId: string | null) => void) {
+  sessionClearListeners.add(fn);
+  return () => sessionClearListeners.delete(fn);
+}
+
+function notifySessionClear() {
+  sessionClearListeners.forEach((listener) => {
+    try {
+      listener(activeUserId);
+    } catch (error) {
+      console.warn('Session clear listener failed', error);
+    }
+  });
+  activeUserId = null;
+}
 
 export function setAuthenticationExpiredHandler(handler: (() => void) | null) {
   authenticationExpiredHandler = handler;
@@ -37,6 +69,7 @@ function parseErrorResponse(value: unknown): string {
     if (typeof candidate.detail === 'object') {
       const detail = candidate.detail as Record<string, unknown>;
       if (typeof detail.msg === 'string') return detail.msg;
+      if (typeof detail.message === 'string') return detail.message;
     }
     if (typeof candidate.message === 'string') return candidate.message;
     if (typeof candidate.error === 'string') return candidate.error;
@@ -76,6 +109,7 @@ async function ensureStoredSession() {
   const token = await getAccessToken();
   if (token) return token;
   clearFavoritesCache();
+  notifySessionClear();
   try {
     if (auth.currentUser) {
       await auth.signOut();
@@ -143,6 +177,7 @@ async function requestJson<T>(
     if (res.status === 401) {
       await clearAccessToken();
       clearFavoritesCache();
+      notifySessionClear();
       try {
         if (auth.currentUser) {
           await auth.signOut();
@@ -247,6 +282,13 @@ export async function syncWithBackend(idToken: string) {
   if (payload?.access_token) {
     clearFavoritesCache();
     await setAccessToken(payload.access_token);
+    const userId = payload?.user?.id;
+    if (typeof userId === 'string' || typeof userId === 'number') {
+      const nextUserId = String(userId);
+      if (activeUserId && activeUserId !== nextUserId) notifySessionClear();
+      clearFavoritesCache();
+      activeUserId = String(userId);
+    }
   }
 
   return payload;
@@ -257,6 +299,7 @@ export async function logoutFromBackend() {
   if (!token) {
     await clearAccessToken();
     clearFavoritesCache();
+    notifySessionClear();
     if (auth.currentUser) {
       await auth.signOut();
     }
@@ -277,6 +320,7 @@ export async function logoutFromBackend() {
       await clearAccessToken();
     } finally {
       clearFavoritesCache();
+      notifySessionClear();
       if (auth.currentUser) {
         await auth.signOut();
       }
@@ -286,6 +330,38 @@ export async function logoutFromBackend() {
 
 export async function getProfile() {
   return requestJson('/api/v1/users/profile', { method: 'GET' }, { requireAuth: true });
+}
+
+export async function getDistricts() {
+  return requestJson<unknown[]>('/api/v1/geo/districts', { method: 'GET' }, { requireAuth: true });
+}
+
+export async function getLocation() {
+  return requestJson('/api/v1/users/location', { method: 'GET' }, { requireAuth: true });
+}
+
+export async function updateLocation(data: { district_id: number; direccion_referencia?: string }) {
+  return requestJson('/api/v1/users/location', {
+    method: 'PUT',
+    body: JSON.stringify({
+      district_id: data.district_id,
+      direccion_referencia: data.direccion_referencia?.trim() || undefined,
+    }),
+  }, { requireAuth: true });
+}
+
+export async function getNearbyStores({ lat, lng, radio_m = 1500 }: { lat: number; lng: number; radio_m?: number }) {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lng: String(lng),
+    radio_m: String(radio_m),
+  });
+  return requestJson<unknown[]>(`/api/v1/stores/nearby?${params.toString()}`, { method: 'GET' }, { requireAuth: true });
+}
+
+export async function getStoreRoute(storeId: string | number, { lat, lng }: { lat: number; lng: number }) {
+  const params = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+  return requestJson(`/api/v1/stores/${encodeURIComponent(String(storeId))}/route?${params.toString()}`, { method: 'GET' }, { requireAuth: true });
 }
 
 export async function updateProfileRestrictions(allergies: string[]) {
