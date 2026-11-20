@@ -21,7 +21,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "MealMuse usa tu ubicación solo para mostrarte comercios cercanos",
+          "locationAlwaysAndWhenInUsePermission": "MealMuse usa tu ubicación solo para mostrarte comercios cercanos"
+        }
+      ]
     ]
   }
 }

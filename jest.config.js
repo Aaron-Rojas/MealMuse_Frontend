@@ -1,5 +1,6 @@
 module.exports = {
   preset: 'jest-expo',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testMatch: ['**/*.jest.test.[jt]s?(x)'],
   clearMocks: true,
   collectCoverageFrom: [
@@ -8,6 +9,14 @@ module.exports = {
     'src/modules/recipes/screens/FavoritesScreen.jsx',
     'src/modules/recipes/screens/RecipeHomeScreen.jsx',
     'src/modules/recipes/screens/RecipeSuggestionScreen.jsx',
+    'src/modules/geo/screens/LocationSetupScreen.jsx',
+    'src/modules/geo/screens/StoresMapScreen.jsx',
+    'src/services/connectivity.ts',
+    'src/services/location.ts',
+    'src/store/cacheStorage.ts',
+    'src/store/pantryStore.ts',
+    'src/store/favoritesStore.ts',
+    'src/store/profileStore.ts',
     'src/services/api.ts',
   ],
   coverageDirectory: 'docs/pruebas/evidencia/coverage',
