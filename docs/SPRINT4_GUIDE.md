@@ -102,9 +102,25 @@ Comandos disponibles:
 
 Las pruebas Node cubren utilidades puras, incluyendo distancia, tiempo, tipos de comercio, orden y enlace de Google Maps. Jest cubre servicios, componentes existentes y API.
 
+## Validación
+
+Ejecutada el 20 de noviembre de 2026 sobre la rama `sprint-4`.
+
+| Comando | Resultado real |
+|---|---|
+| `npm run typecheck` | Aprobado. El proceso terminó sin errores de TypeScript. |
+| `npm test` | Aprobado. 13 pruebas pasadas y 0 fallidas, incluyendo las 5 pruebas nuevas de `storesUtils`. |
+| `npm run test:components` | Aprobado. 35 pruebas pasadas y 0 fallidas en 2 suites Jest. |
+| `npx expo-doctor` | Aprobado. 21/21 comprobaciones pasaron y no se detectaron problemas. |
+| `npx expo export --platform android` | Aprobado. Metro compiló 921 módulos y exportó el bundle Hermes Android de 2,5 MB a `dist/` junto con `metadata.json`. |
+
+No se ejecutó una prueba visual en dispositivo ni un build Android nativo firmado. Por ello no se verificó físicamente el permiso del sistema, el GPS, el modo avión, los marcadores ni la visualización de Google Maps.
+
 ## Variables de entorno y Expo
 
 Usar `EXPO_PUBLIC_API_BASE_URL` para el backend y las variables públicas de Firebase ya configuradas. Para Android con Google Maps, configurar `GOOGLE_MAPS_API_KEY` en el entorno local o de EAS. `app.config.js` la lee sin guardar claves en el repositorio.
+
+`app.json` y `app.config.js` conviven. `app.json` conserva la configuración base de Expo, incluidos el nombre, iconos, permisos de ubicación y `expo-secure-store`. `app.config.js` actúa como configuración dinámica: carga `app.json` como base y agrega o reemplaza el plugin de `react-native-maps` usando `GOOGLE_MAPS_API_KEY` solo cuando la variable de entorno existe. No se escribió ninguna clave en el repositorio.
 
 Ejemplo backend local:
 
@@ -119,16 +135,38 @@ Consultar `docs/QA_SPRINT4.md`. Las pruebas físicas de ubicación y mapas no se
 
 ## Archivos incorporados
 
-- `src/services/connectivity.ts`
-- `src/services/location.ts`
-- `src/services/storesUtils.js`
-- `src/modules/geo/screens/LocationSetupScreen.jsx`
-- `src/modules/geo/screens/StoresMapScreen.jsx`
-- `src/modules/geo/components/StoreRouteSheet.jsx`
-- `src/store/cacheStorage.ts`
-- `src/store/pantryStore.ts`
-- `src/store/favoritesStore.ts`
-- `src/store/profileStore.ts`
+### Archivos nuevos
+
+- `app.config.js`: configuración dinámica de Expo y clave opcional de Google Maps por entorno.
+- `jest.setup.js`: mocks de AsyncStorage, ubicación, red y mapas.
+- `docs/QA_SPRINT4.md`: checklist manual de Sprint 4.
+- `docs/SPRINT4_GUIDE.md`: esta guía.
+- `src/services/connectivity.ts`: consulta segura de conectividad.
+- `src/services/location.ts`: permisos y coordenadas con timeout.
+- `src/services/storesUtils.js`: utilidades puras de distancia, tiempo, tipos y enlace de Maps.
+- `src/services/storesUtils.test.js`: pruebas Node de utilidades de comercios.
+- `src/modules/geo/screens/LocationSetupScreen.jsx`: selección y guardado de ubicación manual.
+- `src/modules/geo/screens/StoresMapScreen.jsx`: flujo completo de comercios cercanos y ruta.
+- `src/modules/geo/components/StoreRouteSheet.jsx`: detalle de comercio y ruta.
+- `src/store/cacheStorage.ts`: almacenamiento, TTL y limpieza por usuario.
+- `src/store/pantryStore.ts`: estado e caché de despensa y resumen.
+- `src/store/favoritesStore.ts`: estado y caché optimista de favoritas.
+- `src/store/profileStore.ts`: estado, perfil, alergias y ubicación manual.
+
+### Archivos modificados
+
+- `App.js`: registra las pantallas `Tiendas` y `Ubicacion` en el stack existente.
+- `app.json`: incorpora el plugin de `expo-location` y los textos de permiso en español.
+- `jest.config.js`: registra `jest.setup.js` y amplía `collectCoverageFrom`.
+- `package.json`: agrega las dependencias y scripts del Sprint 4.
+- `package-lock.json`: refleja las dependencias instaladas.
+- `src/services/api.ts`: agrega endpoints geo, parseo de `detail.message`, `getErrorCode`, limpieza de sesión y aislamiento por usuario.
+- `src/modules/despensa/screens/DespensaScreen.jsx`: conecta despensa y resumen al store con caché e hidratación.
+- `src/modules/recipes/screens/RecipeHomeScreen.jsx`: muestra nombre, resumen y favoritas desde los stores.
+- `src/modules/recipes/screens/FavoritesScreen.jsx`: conecta favoritas al store y conserva estados de carga/error.
+- `src/modules/recipes/screens/RecipeSuggestionScreen.jsx`: agrega el botón `¿Dónde comprar?` únicamente con ingredientes faltantes.
+- `src/modules/profile/screens/ProfileRestrictionsScreen.jsx`: conecta perfil/alergias al store y agrega la fila `Mi ubicación`.
+- `src/modules/sprint3.jest.test.jsx`: agrega el mock mínimo de la nueva API para conservar las pruebas existentes.
 
 ## Resumen
 
