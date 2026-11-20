@@ -10,24 +10,34 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getProfile, updateProfileRestrictions } from '../../../services/api';
+import { getActiveUserId, getProfile, updateProfileRestrictions } from '../../../services/api';
+import { useProfileStore } from '../../../store/profileStore';
 import { colors } from '../../../theme/colors';
 import { normalizeAllergies, ALLERGEN_OPTIONS } from '../../../services/recipeUtils';
 
 export const ProfileRestrictionsScreen = ({ navigation }) => {
+  const profileStore = useProfileStore();
   const [allergies, setAllergies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const loadProfile = async () => {
-    setIsLoading(true);
     setErrorMessage('');
 
     try {
-      const profile = await getProfile();
-      const selected = normalizeAllergies(profile?.alergias || []);
-      setAllergies(selected);
+      const userId = getActiveUserId();
+      if (userId) {
+        await useProfileStore.getState().hydrate(userId);
+        setAllergies(normalizeAllergies(useProfileStore.getState().allergies));
+        setIsLoading(!useProfileStore.getState().manualLocation && !useProfileStore.getState().name);
+        void useProfileStore.getState().refresh();
+      } else {
+        setIsLoading(true);
+        const profile = await getProfile();
+        const selected = normalizeAllergies(profile?.alergias || []);
+        setAllergies(selected);
+      }
     } catch (error) {
       const message = error?.message || 'No se pudo cargar tu perfil';
       setErrorMessage(message);
@@ -40,6 +50,13 @@ export const ProfileRestrictionsScreen = ({ navigation }) => {
   useEffect(() => {
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (profileStore.allergies.length) setAllergies(normalizeAllergies(profileStore.allergies));
+    if (profileStore.status === 'loading') setIsLoading(true);
+    if (profileStore.status === 'refreshing') setIsLoading(false);
+    if (profileStore.status === 'error') setErrorMessage(profileStore.error);
+  }, [profileStore.allergies, profileStore.status, profileStore.error]);
 
   const toggleAllergy = (item) => {
     setAllergies((current) => {
@@ -116,6 +133,16 @@ export const ProfileRestrictionsScreen = ({ navigation }) => {
             <View style={styles.noteBox}>
               <Text style={styles.noteText}>{headerText}</Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.locationRow}
+              onPress={() => navigation?.navigate?.('Ubicacion')}
+              accessibilityRole="button"
+              accessibilityLabel="Mi ubicación"
+            >
+              <Text style={styles.locationText}>Mi ubicación</Text>
+              <Text style={styles.locationArrow}>{'>'}</Text>
+            </TouchableOpacity>
           </>
         )}
 
@@ -229,6 +256,20 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
   },
+  locationRow: {
+    minHeight: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border.light,
+    backgroundColor: colors.background.surface,
+    paddingHorizontal: 14,
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  locationText: { color: colors.text.primary, fontSize: 16, fontWeight: '700' },
+  locationArrow: { color: colors.text.secondary, fontSize: 20 },
   loaderWrap: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -200,22 +200,32 @@ export const RecipeSuggestionScreen = ({ navigation, route }) => {
           ) : (
             <View style={styles.listContainer}>
               {missingIngredients.length ? (
-                missingIngredients.map((ingredient) => (
-                  <View key={ingredient.id} style={styles.ingredientItem}>
-                    <Text style={styles.bullet}>•</Text>
-                    <View style={styles.ingredientCopy}>
-                      <Text style={styles.ingredientText}>{ingredient.nombre}</Text>
-                      {ingredient.cantidad != null || ingredient.unidad ? (
-                        <Text style={styles.secondaryText}>
-                          {[ingredient.cantidad, ingredient.unidad]
-                            .filter((value) => value !== null && value !== undefined && String(value).trim() !== '')
-                            .join(' ')}
-                        </Text>
-                      ) : null}
-                      {ingredient.nota ? <Text style={styles.secondaryText}>{ingredient.nota}</Text> : null}
+                <>
+                  {missingIngredients.map((ingredient) => (
+                    <View key={ingredient.id} style={styles.ingredientItem}>
+                      <Text style={styles.bullet}>•</Text>
+                      <View style={styles.ingredientCopy}>
+                        <Text style={styles.ingredientText}>{ingredient.nombre}</Text>
+                        {ingredient.cantidad != null || ingredient.unidad ? (
+                          <Text style={styles.secondaryText}>
+                            {[ingredient.cantidad, ingredient.unidad]
+                              .filter((value) => value !== null && value !== undefined && String(value).trim() !== '')
+                              .join(' ')}
+                          </Text>
+                        ) : null}
+                        {ingredient.nota ? <Text style={styles.secondaryText}>{ingredient.nota}</Text> : null}
+                      </View>
                     </View>
-                  </View>
-                ))
+                  ))}
+                  <TouchableOpacity
+                    style={styles.buyButton}
+                    onPress={() => navigation.navigate('Tiendas')}
+                    accessibilityRole="button"
+                    accessibilityLabel="¿Dónde comprar?"
+                  >
+                    <Text style={styles.buyButtonText}>¿Dónde comprar?</Text>
+                  </TouchableOpacity>
+                </>
               ) : (
                 <View style={styles.emptyMissingState}>
                   <Text style={styles.emptyMissingIcon}>✓</Text>
@@ -292,6 +302,8 @@ const styles = StyleSheet.create({
   emptyMissingState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 18 },
   emptyMissingIcon: { fontSize: 28, color: colors.primary, fontWeight: '700' },
   emptyMissingText: { marginTop: 8, color: colors.text.primary, fontWeight: '600' },
+  buyButton: { minHeight: 44, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  buyButtonText: { color: '#fff', fontWeight: '700' },
 });
 
 export default RecipeSuggestionScreen;

@@ -11,6 +11,8 @@ import { RecipeHomeScreen } from './src/modules/recipes/screens/RecipeHomeScreen
 import { RecipeSuggestionScreen } from './src/modules/recipes/screens/RecipeSuggestionScreen';
 import { FavoritesScreen } from './src/modules/recipes/screens/FavoritesScreen';
 import { ProfileRestrictionsScreen } from './src/modules/profile/screens/ProfileRestrictionsScreen';
+import { StoresMapScreen } from './src/modules/geo/screens/StoresMapScreen';
+import { LocationSetupScreen } from './src/modules/geo/screens/LocationSetupScreen';
 import { setAuthenticationExpiredHandler } from './src/services/api';
 import { colors } from './src/theme/colors';
 
@@ -88,6 +90,8 @@ export default function App() {
           <Stack.Screen name="Receta" component={RecipeSuggestionScreen} />
           <Stack.Screen name="Favoritos" component={FavoritesScreen} />
           <Stack.Screen name="Despensa" component={DespensaScreen} />
+          <Stack.Screen name="Tiendas" component={StoresMapScreen} />
+          <Stack.Screen name="Ubicacion" component={LocationSetupScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
