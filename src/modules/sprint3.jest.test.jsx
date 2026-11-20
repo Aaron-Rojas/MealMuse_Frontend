@@ -42,6 +42,8 @@ jest.mock('../services/api', () => ({
   updatePantryItem: jest.fn(),
   addPantryItem: jest.fn(),
   logoutFromBackend: jest.fn(),
+  getActiveUserId: jest.fn(() => null),
+  registerSessionClearListener: jest.fn(),
 }));
 
 jest.mock('./despensa/components/AddIngredientModal', () => {

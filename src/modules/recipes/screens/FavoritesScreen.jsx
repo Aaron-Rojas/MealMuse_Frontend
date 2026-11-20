@@ -1,21 +1,38 @@
-﻿import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { deleteFavorite, getCachedFavorites, getFavorite, listFavorites } from '../../../services/api';
+import { deleteFavorite, getActiveUserId, getCachedFavorites, getFavorite, listFavorites } from '../../../services/api';
+import { useFavoritesStore } from '../../../store/favoritesStore';
 import { colors } from '../../../theme/colors';
 
 export const FavoritesScreen = ({ navigation }) => {
+  const favoritesStore = useFavoritesStore();
   const [favorites, setFavorites] = useState(() => getCachedFavorites() || []);
   const [isLoading, setIsLoading] = useState(() => !getCachedFavorites()?.length);
   const [errorMessage, setErrorMessage] = useState('');
 
+  useEffect(() => {
+    if (favoritesStore.items.length) setFavorites(favoritesStore.items);
+    if (favoritesStore.status === 'loading') setIsLoading(true);
+    if (favoritesStore.status === 'refreshing') setIsLoading(!favoritesStore.items.length);
+    if (favoritesStore.status === 'error') setErrorMessage(favoritesStore.error);
+  }, [favoritesStore.items, favoritesStore.status, favoritesStore.error]);
+
   const loadFavorites = useCallback(async () => {
     try {
-      setIsLoading(!getCachedFavorites()?.length);
       setErrorMessage('');
-      const data = await listFavorites({ refresh: true });
-      setFavorites(data);
+      const userId = getActiveUserId();
+      if (userId) {
+        await useFavoritesStore.getState().hydrate(userId);
+        setFavorites(useFavoritesStore.getState().items);
+        setIsLoading(!useFavoritesStore.getState().items.length);
+        void useFavoritesStore.getState().refresh();
+      } else {
+        setIsLoading(!getCachedFavorites()?.length);
+        const data = await listFavorites({ refresh: true });
+        setFavorites(data);
+      }
     } catch (error) {
       console.warn('loadFavorites:', error);
       setErrorMessage(error?.message || 'No se pudieron cargar tus favoritas.');

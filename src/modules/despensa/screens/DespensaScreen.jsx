@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,8 @@ import { IngredientCard } from '../components/IngredientCard';
 import { AddIngredientModal } from '../components/AddIngredientModal';
 import { FloatingActionButton } from '../../../shared/components/atoms/FloatingActionButton';
 import { colors } from '../../../theme/colors';
-import { getPantry, addPantryItem, updatePantryItem, deletePantryItem, logoutFromBackend } from '../../../services/api';
+import { getPantry, addPantryItem, updatePantryItem, deletePantryItem, logoutFromBackend, getActiveUserId } from '../../../services/api';
+import { usePantryStore } from '../../../store/pantryStore';
 
 function transformBackendItem(item) {
   if (item?.id == null) {
@@ -42,6 +43,7 @@ function transformBackendItem(item) {
 }
 
 export const DespensaScreen = ({ navigation = { navigate: () => {}, replace: () => {}, reset: () => {} }, onSearchPress = () => {} }) => {
+  const pantryStore = usePantryStore();
   const [ingredients, setIngredients] = useState([]);
   const [isModalVisible, setModalVisible] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState(null);
@@ -54,12 +56,28 @@ export const DespensaScreen = ({ navigation = { navigate: () => {}, replace: () 
     fechaVencimiento: editingIngredient.fechaVencimiento,
   } : null, [editingIngredient]);
 
+  useEffect(() => {
+    if (pantryStore.items.length) setIngredients(pantryStore.items.map(transformBackendItem));
+    if (pantryStore.status === 'loading') setIsLoading(true);
+    if (pantryStore.status === 'refreshing') setIsLoading(!pantryStore.items.length);
+    if (pantryStore.status === 'error') setErrorMessage(pantryStore.error);
+  }, [pantryStore.items, pantryStore.status, pantryStore.error]);
+
   const loadPantry = useCallback(async () => {
     try {
-      setIsLoading(true);
       setErrorMessage('');
-      const data = await getPantry();
-      setIngredients(data.map(transformBackendItem));
+      const userId = getActiveUserId();
+      if (userId) {
+        await usePantryStore.getState().hydrate(userId);
+        const cached = usePantryStore.getState().items;
+        if (cached.length) setIngredients(cached.map(transformBackendItem));
+        setIsLoading(!cached.length);
+        void usePantryStore.getState().refresh();
+      } else {
+        setIsLoading(true);
+        const data = await getPantry();
+        setIngredients(data.map(transformBackendItem));
+      }
     } catch (error) {
       console.error('Error al cargar despensa:', error);
       setIngredients([]);

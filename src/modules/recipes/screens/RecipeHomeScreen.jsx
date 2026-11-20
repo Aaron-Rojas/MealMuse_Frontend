@@ -1,11 +1,17 @@
-﻿import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { getPantrySummary, listFavorites, getProfile, getCachedFavorites } from '../../../services/api';
+import { getPantrySummary, listFavorites, getProfile, getCachedFavorites, getActiveUserId } from '../../../services/api';
+import { useFavoritesStore } from '../../../store/favoritesStore';
+import { usePantryStore } from '../../../store/pantryStore';
+import { useProfileStore } from '../../../store/profileStore';
 import { colors } from '../../../theme/colors';
 
 export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
+  const favoritesStore = useFavoritesStore();
+  const pantryStore = usePantryStore();
+  const profileStore = useProfileStore();
   const [profileName, setProfileName] = useState('Esther');
   const [summary, setSummary] = useState({ por_vencer: 0, vencidos: 0 });
   const [favorites, setFavorites] = useState(() => getCachedFavorites() || []);
@@ -14,9 +20,16 @@ export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
 
   const loadProfile = useCallback(async () => {
     try {
-      const profile = await getProfile();
-      const nextName = profile?.nombre || profile?.displayName || 'Esther';
-      setProfileName(nextName || 'Esther');
+      const userId = getActiveUserId();
+      if (userId) {
+        await useProfileStore.getState().hydrate(userId);
+        setProfileName(useProfileStore.getState().name || 'Esther');
+        void useProfileStore.getState().refresh();
+      } else {
+        const profile = await getProfile();
+        const nextName = profile?.nombre || profile?.displayName || 'Esther';
+        setProfileName(nextName || 'Esther');
+      }
     } catch (error) {
       console.warn('loadProfile:', error);
     }
@@ -24,11 +37,18 @@ export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
 
   const loadPantrySummary = useCallback(async () => {
     try {
-      const nextSummary = await getPantrySummary();
-      setSummary({
-        por_vencer: Number(nextSummary?.por_vencer || 0),
-        vencidos: Number(nextSummary?.vencidos || 0),
-      });
+      const userId = getActiveUserId();
+      if (userId) {
+        await usePantryStore.getState().hydrate(userId);
+        setSummary(usePantryStore.getState().summary);
+        void usePantryStore.getState().refresh();
+      } else {
+        const nextSummary = await getPantrySummary();
+        setSummary({
+          por_vencer: Number(nextSummary?.por_vencer || 0),
+          vencidos: Number(nextSummary?.vencidos || 0),
+        });
+      }
     } catch (error) {
       console.warn('loadPantrySummary:', error);
       setSummary({ por_vencer: 0, vencidos: 0 });
@@ -36,11 +56,19 @@ export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
   }, []);
 
   const loadFavorites = useCallback(async () => {
-    setIsFavoritesLoading(!getCachedFavorites()?.length);
     setFavoritesError('');
     try {
-      const data = await listFavorites({ refresh: true });
-      setFavorites(data);
+      const userId = getActiveUserId();
+      if (userId) {
+        await useFavoritesStore.getState().hydrate(userId);
+        setFavorites(useFavoritesStore.getState().items);
+        setIsFavoritesLoading(!useFavoritesStore.getState().items.length);
+        void useFavoritesStore.getState().refresh();
+      } else {
+        setIsFavoritesLoading(!getCachedFavorites()?.length);
+        const data = await listFavorites({ refresh: true });
+        setFavorites(data);
+      }
     } catch (error) {
       console.warn('loadFavorites:', error);
       setFavoritesError(error?.message || 'No se pudieron cargar tus favoritas.');
@@ -56,6 +84,20 @@ export const RecipeHomeScreen = ({ navigation, onOpenRestrictions }) => {
       loadFavorites();
     }, [loadProfile, loadPantrySummary, loadFavorites])
   );
+
+  useEffect(() => {
+    if (profileStore.name) setProfileName(profileStore.name);
+  }, [profileStore.name]);
+
+  useEffect(() => {
+    if (pantryStore.summary) setSummary(pantryStore.summary);
+  }, [pantryStore.summary]);
+
+  useEffect(() => {
+    if (favoritesStore.items.length) setFavorites(favoritesStore.items);
+    setIsFavoritesLoading(favoritesStore.status === 'loading');
+    if (favoritesStore.status === 'error') setFavoritesError(favoritesStore.error);
+  }, [favoritesStore.items, favoritesStore.status, favoritesStore.error]);
 
   const handleSuggestRecipe = () => {
     navigation.navigate('Receta');
