@@ -109,7 +109,7 @@ export const StoresMapScreen = ({ navigation }) => {
         setSelectedStore(null);
         setRoute(null);
       };
-    }, [initialize])
+    }, [])
   );
 
   const chooseRoute = async (store) => {
@@ -223,7 +223,19 @@ export const StoresMapScreen = ({ navigation }) => {
       ) : (
         <View style={styles.mapFallback}><Text style={styles.mapFallbackText}>Mapa no disponible. Puedes usar la lista.</Text></View>
       )}
-      {error ? <Text style={styles.errorBanner}>{error}</Text> : null}
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.errorRetryButton}
+            onPress={() => loadNearby()}
+            accessibilityRole="button"
+            accessibilityLabel="Reintentar"
+          >
+            <Text style={styles.errorRetryText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
       {selectedStore ? (
         <StoreRouteSheet store={selectedStore} route={route} onClose={() => { setSelectedStore(null); setRoute(null); }} />
       ) : (
@@ -261,5 +273,8 @@ const styles = StyleSheet.create({
   storeMeta: { color: colors.primary, fontWeight: '700', marginTop: 6 },
   storeAddress: { color: colors.text.secondary, marginTop: 3 },
   reference: { color: colors.status.expiringText, fontWeight: '600', marginTop: 4 },
-  errorBanner: { color: colors.error.text, backgroundColor: colors.error.background, padding: 10, textAlign: 'center' },
+  errorBanner: { backgroundColor: colors.error.background, padding: 10, alignItems: 'center' },
+  errorBannerText: { color: colors.error.text, textAlign: 'center' },
+  errorRetryButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 18 },
+  errorRetryText: { color: colors.primary, fontWeight: '700' },
 });
