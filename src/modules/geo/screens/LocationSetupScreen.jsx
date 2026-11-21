@@ -8,7 +8,7 @@ import { colors } from '../../../theme/colors';
 export const LocationSetupScreen = ({ navigation, route }) => {
   const [districts, setDistricts] = useState([]);
   const [search, setSearch] = useState('');
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState('');
   const [reference, setReference] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -20,7 +20,7 @@ export const LocationSetupScreen = ({ navigation, route }) => {
       .then(([nextDistricts, location]) => {
         if (!active) return;
         setDistricts(Array.isArray(nextDistricts) ? nextDistricts : []);
-        setSelectedId(location?.district_id ?? null);
+        setSelectedId(location?.district_id ?? '');
         setReference(location?.direccion_referencia ?? '');
       })
       .catch((caught) => setError(caught?.message || 'No se pudo cargar la ubicación'))

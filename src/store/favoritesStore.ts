@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { deleteFavorite, listFavorites, registerSessionClearListener, saveFavorite } from '../services/api';
+import { deleteFavorite, listFavorites, registerFavoritesSource, registerSessionClearListener, saveFavorite } from '../services/api';
 import { clearUserCache, readCache, writeCache } from './cacheStorage';
 
 type State = {
@@ -73,4 +73,9 @@ export const useFavoritesStore = create<State>((set, get) => ({
 
 registerSessionClearListener((userId) => {
   void useFavoritesStore.getState().clear(userId);
+});
+
+registerFavoritesSource({
+  getItems: () => useFavoritesStore.getState().items,
+  setItems: (items) => useFavoritesStore.setState({ items: items || [] }),
 });

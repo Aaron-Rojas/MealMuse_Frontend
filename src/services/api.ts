@@ -16,7 +16,18 @@ type FavoriteRead = {
   fecha_guardado: string;
 };
 
-let favoritesCache: FavoriteRead[] | null = null;
+type FavoritesSource = {
+  getItems: () => FavoriteRead[] | null;
+  setItems: (items: FavoriteRead[] | null) => void;
+};
+let favoritesSource: FavoritesSource | null = null;
+
+export function registerFavoritesSource(source: FavoritesSource) {
+  favoritesSource = source;
+  return () => {
+    if (favoritesSource === source) favoritesSource = null;
+  };
+}
 
 export function getActiveUserId(): string | null {
   return activeUserId;
@@ -53,11 +64,12 @@ export function setAuthenticationExpiredHandler(handler: (() => void) | null) {
 }
 
 export function getCachedFavorites(): FavoriteRead[] | null {
-  return favoritesCache ? [...favoritesCache] : null;
+  const items = favoritesSource?.getItems();
+  return items ? [...items] : null;
 }
 
 export function clearFavoritesCache() {
-  favoritesCache = null;
+  favoritesSource?.setItems(null);
 }
 
 function parseErrorResponse(value: unknown): string {
@@ -340,7 +352,7 @@ export async function getLocation() {
   return requestJson('/api/v1/users/location', { method: 'GET' }, { requireAuth: true });
 }
 
-export async function updateLocation(data: { district_id: number; direccion_referencia?: string }) {
+export async function updateLocation(data: { district_id: string; direccion_referencia?: string }) {
   return requestJson('/api/v1/users/location', {
     method: 'PUT',
     body: JSON.stringify({
@@ -452,13 +464,15 @@ function normalizeFavoriteRead(value: unknown): FavoriteRead {
 }
 
 export async function listFavorites({ refresh = false }: { refresh?: boolean } = {}): Promise<FavoriteRead[]> {
-  if (favoritesCache && !refresh) return [...favoritesCache];
+  const cached = favoritesSource?.getItems();
+  if (cached && !refresh) return [...cached];
   const favorites = await requestJson<unknown>('/api/v1/recipes/favorites', { method: 'GET' }, { requireAuth: true });
   if (!Array.isArray(favorites)) {
     throw new Error('La lista de favoritas no tiene un formato válido');
   }
-  favoritesCache = favorites.map(normalizeFavoriteRead);
-  return [...favoritesCache];
+  const normalized = favorites.map(normalizeFavoriteRead);
+  favoritesSource?.setItems(normalized);
+  return [...normalized];
 }
 
 export async function saveFavorite(recipe: Record<string, unknown>): Promise<FavoriteRead> {
@@ -476,10 +490,11 @@ export async function saveFavorite(recipe: Record<string, unknown>): Promise<Fav
   }
 
   const normalized = normalizeFavoriteRead(favorite);
-  favoritesCache = [
+  const current = favoritesSource?.getItems() || [];
+  favoritesSource?.setItems([
     normalized,
-    ...(favoritesCache || []).filter((item) => item.nombre !== normalized.nombre),
-  ];
+    ...current.filter((item) => item.nombre !== normalized.nombre),
+  ]);
   return normalized;
 }
 
@@ -491,13 +506,13 @@ export async function getFavorite(id: string): Promise<FavoriteRead> {
 export async function deleteFavorite(id: string) {
   try {
     const result = await requestJson(`/api/v1/recipes/favorites/${id}`, { method: 'DELETE' }, { requireAuth: true });
-    if (favoritesCache) {
-      favoritesCache = favoritesCache.filter((item) => item.id !== id);
-    }
+    const current = favoritesSource?.getItems();
+    if (current) favoritesSource?.setItems(current.filter((item) => item.id !== id));
     return result;
   } catch (error) {
-    if (error instanceof Error && 'status' in error && error.status === 404 && favoritesCache) {
-      favoritesCache = favoritesCache.filter((item) => item.id !== id);
+    if (error instanceof Error && 'status' in error && error.status === 404) {
+      const current = favoritesSource?.getItems();
+      if (current) favoritesSource?.setItems(current.filter((item) => item.id !== id));
     }
     throw error;
   }

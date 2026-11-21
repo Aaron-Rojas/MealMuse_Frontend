@@ -74,6 +74,11 @@ test('[HU-12 CA-05] DELETE 204 elimina la favorita de la caché', async () => {
     .mockResolvedValueOnce(response(200, [favorite]))
     .mockResolvedValueOnce(response(204, null));
   const api = loadApi();
+  let favoriteItems = null;
+  api.registerFavoritesSource({
+    getItems: () => favoriteItems,
+    setItems: (items) => { favoriteItems = items; },
+  });
   await api.listFavorites({ refresh: true });
 
   await expect(api.deleteFavorite(favorite.id)).resolves.toBeUndefined();
@@ -147,4 +152,57 @@ test('[PC-F-05] Timeout aborta la solicitud y devuelve un error explícito', asy
   await jest.advanceTimersByTimeAsync(15000);
 
   await assertion;
+});
+
+test('[HU-15] getDistricts y updateLocation usan Bearer y UUID', async () => {
+  global.fetch
+    .mockResolvedValueOnce(response(200, [{ id: 'district-uuid', nombre: 'Miraflores' }]))
+    .mockResolvedValueOnce(response(200, { district_id: 'district-uuid', latitud: -12, longitud: -77 }));
+  const api = loadApi();
+
+  await api.getDistricts();
+  await api.updateLocation({ district_id: 'district-uuid', direccion_referencia: 'Frente al parque' });
+
+  expect(global.fetch).toHaveBeenCalledWith(
+    'https://api.test/api/v1/geo/districts',
+    expect.objectContaining({ headers: expect.any(Headers) })
+  );
+  const updateOptions = global.fetch.mock.calls[1][1];
+  expect(updateOptions.method).toBe('PUT');
+  expect(JSON.parse(updateOptions.body)).toEqual({
+    district_id: 'district-uuid',
+    direccion_referencia: 'Frente al parque',
+  });
+  expect(updateOptions.headers.get('Authorization')).toBe('Bearer test-token');
+});
+
+test('[HU-11] nearby y route envían query params Bearer', async () => {
+  global.fetch
+    .mockResolvedValueOnce(response(200, []))
+    .mockResolvedValueOnce(response(200, { store_id: 'store-uuid', polilinea: [], distancia_m: 350, minutos_estimados: 5 }));
+  const api = loadApi();
+
+  await api.getNearbyStores({ lat: -12.0464, lng: -77.0428, radio_m: 3000 });
+  await api.getStoreRoute('store-uuid', { lat: -12.0464, lng: -77.0428 });
+
+  expect(global.fetch.mock.calls[0][0]).toBe(
+    'https://api.test/api/v1/stores/nearby?lat=-12.0464&lng=-77.0428&radio_m=3000'
+  );
+  expect(global.fetch.mock.calls[1][0]).toBe(
+    'https://api.test/api/v1/stores/store-uuid/route?lat=-12.0464&lng=-77.0428'
+  );
+  expect(global.fetch.mock.calls[1][1].headers.get('Authorization')).toBe('Bearer test-token');
+});
+
+test('[HU-11] getErrorCode lee el código de un 503', async () => {
+  global.fetch.mockResolvedValue(response(503, {
+    detail: { code: 'MAPS_QUOTA_EXCEEDED', message: 'Cuota temporal agotada' },
+  }));
+  const api = loadApi();
+
+  try {
+    await api.getNearbyStores({ lat: -12, lng: -77 });
+  } catch (error) {
+    expect(api.getErrorCode(error)).toBe('MAPS_QUOTA_EXCEEDED');
+  }
 });

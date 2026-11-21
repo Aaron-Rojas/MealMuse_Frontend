@@ -13,7 +13,7 @@ type State = {
   lastUpdated: number | null;
   hydrate: (userId: string) => Promise<void>;
   refresh: () => Promise<void>;
-  saveLocation: (districtId: number, referencia: string) => Promise<ManualLocation>;
+  saveLocation: (districtId: string, referencia: string) => Promise<ManualLocation>;
   saveRestrictions: (allergies: string[]) => Promise<void>;
   clear: (userId?: string | null) => Promise<void>;
 };

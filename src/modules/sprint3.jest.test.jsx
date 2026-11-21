@@ -44,6 +44,7 @@ jest.mock('../services/api', () => ({
   logoutFromBackend: jest.fn(),
   getActiveUserId: jest.fn(() => null),
   registerSessionClearListener: jest.fn(),
+  registerFavoritesSource: jest.fn(),
 }));
 
 jest.mock('./despensa/components/AddIngredientModal', () => {
@@ -240,6 +241,29 @@ test.each([[], null, undefined])('[HU-10 CA-04] Lista faltante %s muestra el est
   await fireEvent.press(view.getByRole('tab', { name: 'Faltantes' }));
   await waitFor(() => expect(view.getByText('Tienes todos los ingredientes')).toBeTruthy());
   expect(normalizeMissingIngredients(missing)).toEqual([]);
+});
+
+test('[HU-11] ¿Dónde comprar? aparece solo con ingredientes faltantes', async () => {
+  const withMissing = await render(
+    <RecipeSuggestionScreen
+      navigation={navigation}
+      route={{ params: { recipe: { ...recipe, ingredientes_faltantes: [{ nombre: 'Leche', cantidad: 1, unidad: 'L' }] } } }}
+    />
+  );
+  await fireEvent.press(withMissing.getByRole('tab', { name: 'Faltantes (1)' }));
+  await waitFor(() => expect(withMissing.getByText('¿Dónde comprar?')).toBeTruthy());
+  await fireEvent.press(withMissing.getByText('¿Dónde comprar?'));
+  expect(navigation.navigate).toHaveBeenCalledWith('Tiendas');
+  await withMissing.unmount();
+
+  const withoutMissing = await render(
+    <RecipeSuggestionScreen
+      navigation={navigation}
+      route={{ params: { recipe: { ...recipe, ingredientes_faltantes: [] } } }}
+    />
+  );
+  await fireEvent.press(withoutMissing.getByRole('tab', { name: 'Faltantes' }));
+  expect(withoutMissing.queryByText('¿Dónde comprar?')).toBeNull();
 });
 
 test('[HU-12 CA-01][PR-F-02] El corazón cambia antes de resolverse el POST demorado 2 s', async () => {
