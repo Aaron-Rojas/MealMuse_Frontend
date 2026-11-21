@@ -1,62 +1,92 @@
 
 > frontend@1.0.0 test
-> node --test src/services/expiryUtils.test.js src/services/favoritesUtils.test.js src/services/recipeUtils.test.js
+> node --test src/services/expiryUtils.test.js src/services/favoritesUtils.test.js src/services/recipeUtils.test.js src/services/storesUtils.test.js
 
 TAP version 13
 # Subtest: maps pantry expiration states to user-friendly labels and colors
 ok 1 - maps pantry expiration states to user-friendly labels and colors
   ---
-  duration_ms: 1.8362
+  duration_ms: 5.7249
   type: 'test'
   ...
 # Subtest: does not infer expiration status when the backend state is missing
 ok 2 - does not infer expiration status when the backend state is missing
   ---
-  duration_ms: 0.522
+  duration_ms: 1.207
   type: 'test'
   ...
 # Subtest: toggleFavoriteRecipe stores recipes by name and removes them once toggled off
 ok 3 - toggleFavoriteRecipe stores recipes by name and removes them once toggled off
   ---
-  duration_ms: 2.3708
+  duration_ms: 9.189
   type: 'test'
   ...
 # Subtest: normalizeMissingIngredients keeps the missing list safe even when quantity or unit are null
 ok 4 - normalizeMissingIngredients keeps the missing list safe even when quantity or unit are null
   ---
-  duration_ms: 0.5783
+  duration_ms: 0.6709
   type: 'test'
   ...
 # Subtest: normalizeMissingIngredients preserves zero quantities and treats absent lists as empty
 ok 5 - normalizeMissingIngredients preserves zero quantities and treats absent lists as empty
   ---
-  duration_ms: 1.6087
+  duration_ms: 4.0888
   type: 'test'
   ...
 # Subtest: normalizeAllergies keeps only valid backend values and preserves the allowed order
 ok 6 - normalizeAllergies keeps only valid backend values and preserves the allowed order
   ---
-  duration_ms: 2.4524
+  duration_ms: 7.362
   type: 'test'
   ...
 # Subtest: getCaloriesLabel handles unknown calorie data honestly
 ok 7 - getCaloriesLabel handles unknown calorie data honestly
   ---
-  duration_ms: 0.4614
+  duration_ms: 0.8581
   type: 'test'
   ...
 # Subtest: getSafetyMessage communicates verification without guaranteeing medical safety
 ok 8 - getSafetyMessage communicates verification without guaranteeing medical safety
   ---
-  duration_ms: 0.3685
+  duration_ms: 22.6441
   type: 'test'
   ...
-1..8
-# tests 8
+# Subtest: formatea distancias en metros y kilómetros
+ok 9 - formatea distancias en metros y kilómetros
+  ---
+  duration_ms: 5.7751
+  type: 'test'
+  ...
+# Subtest: formatea tiempo de caminata
+ok 10 - formatea tiempo de caminata
+  ---
+  duration_ms: 0.474
+  type: 'test'
+  ...
+# Subtest: devuelve etiquetas e iconos distintos por tipo
+ok 11 - devuelve etiquetas e iconos distintos por tipo
+  ---
+  duration_ms: 2.5346
+  type: 'test'
+  ...
+# Subtest: ordena comercios sin mutar la lista original
+ok 12 - ordena comercios sin mutar la lista original
+  ---
+  duration_ms: 3.2244
+  type: 'test'
+  ...
+# Subtest: construye enlace profundo de Google Maps
+ok 13 - construye enlace profundo de Google Maps
+  ---
+  duration_ms: 2.8367
+  type: 'test'
+  ...
+1..13
+# tests 13
 # suites 0
-# pass 8
+# pass 13
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 178.5238
+# duration_ms 621.1959

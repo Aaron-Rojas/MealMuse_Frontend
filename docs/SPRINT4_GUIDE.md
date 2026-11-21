@@ -110,7 +110,8 @@ Ejecutada el 20 de noviembre de 2026 sobre la rama `sprint-4`.
 |---|---|
 | `npm run typecheck` | Aprobado. El proceso terminó sin errores de TypeScript. |
 | `npm test` | Aprobado. 13 pruebas pasadas y 0 fallidas, incluyendo las 5 pruebas nuevas de `storesUtils`. |
-| `npm run test:components` | Aprobado. 35 pruebas pasadas y 0 fallidas en 2 suites Jest. |
+| `npm run test:components` | Aprobado. 52 pruebas pasadas y 0 fallidas en 5 suites Jest. |
+| `npm run test:all` | Aprobado. 13 pruebas Node y 52 pruebas Jest pasadas; 0 fallidas. |
 | `npx expo-doctor` | Aprobado. 21/21 comprobaciones pasaron y no se detectaron problemas. |
 | `npx expo export --platform android` | Aprobado. Metro compiló 921 módulos y exportó el bundle Hermes Android de 2,5 MB a `dist/` junto con `metadata.json`. |
 
@@ -145,6 +146,11 @@ Consultar `docs/QA_SPRINT4.md`. Las pruebas físicas de ubicación y mapas no se
 - `src/services/location.ts`: permisos y coordenadas con timeout.
 - `src/services/storesUtils.js`: utilidades puras de distancia, tiempo, tipos y enlace de Maps.
 - `src/services/storesUtils.test.js`: pruebas Node de utilidades de comercios.
+- `src/services/connectivity.location.jest.test.js`: conectividad, permiso y coordenadas con mocks.
+- `src/services/api.jest.test.js`: ampliado con endpoints geo, query params Bearer y `getErrorCode` 503.
+- `src/store/sprint4Stores.jest.test.js`: caché, hidratación, revalidación, rollback, UUID y limpieza.
+- `src/modules/geo/sprint4GeoScreens.jest.test.jsx`: ubicación manual, búsqueda, sin red y estado sin ubicación.
+- `src/modules/sprint3.jest.test.jsx`: ampliado con la prueba del botón `¿Dónde comprar?`.
 - `src/modules/geo/screens/LocationSetupScreen.jsx`: selección y guardado de ubicación manual.
 - `src/modules/geo/screens/StoresMapScreen.jsx`: flujo completo de comercios cercanos y ruta.
 - `src/modules/geo/components/StoreRouteSheet.jsx`: detalle de comercio y ruta.
@@ -170,4 +176,4 @@ Consultar `docs/QA_SPRINT4.md`. Las pruebas físicas de ubicación y mapas no se
 
 ## Resumen
 
-El Sprint 4 añade ubicación, mapas, rutas, caché persistente por usuario y limpieza de sesión. Las comprobaciones automatizadas deben indicarse con sus resultados reales al cerrar la tarea.
+El Sprint 4 queda cerrado en el frontend con ubicación manual, mapas, rutas, caché persistente por usuario, limpieza de sesión y favoritos con `favoritesStore` como única fuente de verdad. Los IDs de distrito se manejan como UUID string. La validación automatizada real cerró con 13 pruebas Node y 52 pruebas Jest aprobadas, sin fallos. `expo-doctor` aprobó 21/21 comprobaciones y la exportación Android terminó. Las validaciones físicas de permisos, GPS, mapa y caché entre usuarios permanecen pendientes en dispositivo.
